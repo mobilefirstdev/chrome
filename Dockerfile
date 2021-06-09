@@ -1,4 +1,4 @@
-FROM browserless/base:1.10.0
+FROM budsense/chrome:latest
 
 # Build Args
 ARG USE_CHROME_STABLE
