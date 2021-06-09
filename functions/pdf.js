@@ -74,6 +74,7 @@ module.exports = async function pdf({ page, context }) {
     setJavaScriptEnabled = null,
     userAgent = null,
     waitFor,
+    waitForFunction,
   } = context;
 
   if (authenticate) {
@@ -180,6 +181,8 @@ module.exports = async function pdf({ page, context }) {
     } else {
       await new Promise((r) => setTimeout(r, waitFor));
     }
+  } else if (waitForFunction && typeof waitForFunction === 'string') {
+    await page.waitForFunction(waitForFunction);
   }
 
   let data = safeMode

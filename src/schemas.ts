@@ -1,6 +1,7 @@
 import Joi from 'joi';
 
 const waitFor = [Joi.string(), Joi.number()];
+const waitForFunction = Joi.string();
 const userAgent = Joi.string();
 
 const gotoOptions = Joi.object().keys({
@@ -180,6 +181,7 @@ export const content = Joi.object().keys({
   waitFor,
 });
 
+// @ts-ignore
 export const pdf = Joi.object()
   .keys({
     authenticate,
@@ -231,6 +233,7 @@ export const pdf = Joi.object()
     userAgent,
     viewport,
     waitFor,
+    waitForFunction,
   })
   .xor('url', 'html');
 
