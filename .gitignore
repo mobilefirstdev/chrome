@@ -20,3 +20,7 @@ _site
 
 # Coverage
 coverage
+.idea/chrome.iml
+.idea/modules.xml
+.idea/codeStyles/codeStyleConfig.xml
+.idea/codeStyles/Project.xml

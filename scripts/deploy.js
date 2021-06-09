@@ -13,7 +13,7 @@ const {
   version,
 } = require('../package.json');
 
-const REPO = 'browserless/chrome';
+const REPO = 'budsense/chrome';
 
 const logExec = (cmd) => {
   debug(`  "${cmd}"`);
