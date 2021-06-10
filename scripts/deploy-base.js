@@ -4,12 +4,12 @@ const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
 
-const BASE = 'browserless/base';
+const BASE = 'budsense/base';
 const VERSION = process.env.VERSION;
 
 if (!VERSION) {
   throw new Error(
-    `Expected a $VERSION env variable to tag the browserless/base repo, but none was found.`,
+    `Expected a $VERSION env variable to tag the budsense/base repo, but none was found.`,
   );
 }
 
