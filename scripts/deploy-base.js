@@ -4,7 +4,7 @@ const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
 
-const BASE = 'budsense/base';
+const BASE = 'budsense/chrome';
 const VERSION = process.env.VERSION;
 
 if (!VERSION) {
