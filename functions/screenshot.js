@@ -37,6 +37,7 @@ module.exports = async function screenshot({ page, context } = {}) {
     setJavaScriptEnabled = null,
     viewport,
     waitFor,
+    waitForFunction,
   } = context;
 
   if (authenticate) {
@@ -134,6 +135,8 @@ module.exports = async function screenshot({ page, context } = {}) {
     } else {
       await new Promise((r) => setTimeout(r, waitFor));
     }
+  } else if (waitForFunction && typeof waitForFunction === 'string') {
+    await page.waitForFunction(waitForFunction);
   }
 
   const data = await page.screenshot(options);

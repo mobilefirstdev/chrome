@@ -162,6 +162,7 @@ export const screenshot = Joi.object()
     userAgent,
     viewport,
     waitFor,
+    waitForFunction,
   })
   .xor('url', 'html');
 
