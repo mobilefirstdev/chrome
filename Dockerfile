@@ -7,7 +7,7 @@ ARG PUPPETEER_VERSION
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
-ENV CONNECTION_TIMEOUT=60000
+ENV CONNECTION_TIMEOUT=600000
 ENV CHROME_PATH=/usr/bin/google-chrome
 ENV HOST=0.0.0.0
 ENV IS_DOCKER=true

@@ -11,7 +11,7 @@
  * });
  */
 
-async function waitForElement(selector, timeout = 60000) {
+async function waitForElement(selector, timeout = 600000) {
   return new Promise((resolve) => {
     const timeOutId = setTimeout(resolve, timeout);
 

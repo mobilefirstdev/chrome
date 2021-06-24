@@ -90,6 +90,10 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   let response = null;
 
+  // Disable page timeout
+  await page.setDefaultNavigationTimeout(0);
+  await page.setDefaultTimeout(0);
+
   if (url !== null) {
     response = await page.goto(url, gotoOptions);
   } else {

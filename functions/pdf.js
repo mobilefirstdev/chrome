@@ -136,6 +136,10 @@ module.exports = async function pdf({ page, context }) {
 
   let response = {};
 
+  // Disable page timeout
+  await page.setDefaultNavigationTimeout(0);
+  await page.setDefaultTimeout(0);
+
   if (url !== null) {
     response = await page.goto(url, gotoOptions);
   } else {
