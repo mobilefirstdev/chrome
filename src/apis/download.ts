@@ -1,10 +1,12 @@
-import { noop } from 'lodash';
+import { mkdir } from 'fs/promises';
 import path from 'path';
+
+import { noop } from 'lodash';
 import { Page } from 'puppeteer';
 import rimraf from 'rimraf';
 
 import { WORKSPACE_DIR } from '../config';
-import { id, mkdir, readdir, sleep } from '../utils';
+import { id, readdir, sleep } from '../utils';
 
 export const before = async ({ page }: { page: Page }) => {
   const downloadPath = path.join(
@@ -29,9 +31,9 @@ export const after = async ({
   done,
 }: {
   downloadPath: string;
-  debug: (...args: string[]) => {};
+  debug: (...args: string[]) => any;
   res: any;
-  done: (errBack?: Error | null) => {};
+  done: (errBack?: Error | null) => any;
 }) => {
   debug(`Waiting for download to finish in ${downloadPath}`);
 

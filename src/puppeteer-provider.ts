@@ -1,15 +1,13 @@
-import _ from 'lodash';
 import net from 'net';
+
+import _ from 'lodash';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
+import { PLAYWRIGHT_ROUTE } from './constants';
 import { EventArray } from './event-array';
 import { Queue } from './queue';
-import * as utils from './utils';
-
-import { PLAYWRIGHT_ROUTE } from './constants';
-
 import {
   IChromeServiceConfiguration,
   ILaunchOptions,
@@ -18,7 +16,8 @@ import {
   IDone,
   IJob,
   IHTTPRequest,
-} from './types';
+} from './types.d';
+import * as utils from './utils';
 
 const sysdebug = utils.getDebug('system');
 const jobdebug = utils.getDebug('job');
@@ -124,6 +123,7 @@ export class PuppeteerProvider {
     ignoreDefaultArgs = false,
     builtin = this.config.functionBuiltIns,
     external = this.config.functionExternals,
+    envVars = this.config.functionEnvVars,
   }: IRunHTTP) {
     const jobId = utils.id();
     const trackingId = req.query.trackingId;
@@ -159,13 +159,13 @@ export class PuppeteerProvider {
         hook: this.server.sessionCheckFailHook,
       });
     }
-
     const vm = new NodeVM({
       require: {
         builtin,
         external,
         root: './node_modules',
       },
+      env: _.pick(process.env, envVars),
     });
 
     const handler: (args: any) => Promise<any> = vm.run(
@@ -276,7 +276,7 @@ export class PuppeteerProvider {
               if (headers) {
                 Object.keys(headers).forEach((key) => {
                   const hasValue =
-                    headers.hasOwnProperty(key) &&
+                    Object.prototype.hasOwnProperty.call(headers, key) &&
                     headers[key] !== null &&
                     headers[key] !== undefined &&
                     headers[key] !== '';

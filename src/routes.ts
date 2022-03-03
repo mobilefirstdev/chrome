@@ -1,16 +1,34 @@
+import { mkdir } from 'fs/promises';
+import path from 'path';
+
 import archiver from 'archiver';
 import bodyParser from 'body-parser';
 import { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
-import path from 'path';
 
+import {
+  after as downloadAfter,
+  before as downloadBefore,
+} from './apis/download';
+import {
+  after as screencastAfter,
+  before as screenCastBefore,
+} from './apis/screencast';
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { Features } from './features';
 import { PuppeteerProvider } from './puppeteer-provider';
+import {
+  content as contentSchema,
+  fn as fnSchema,
+  pdf as pdfSchema,
+  scrape as scrapeSchema,
+  screenshot as screenshotSchema,
+  stats as statsSchema,
+} from './schemas';
 import swaggerDef from './swagger';
-import { IBrowserlessOptions, IBrowserlessStats, Feature } from './types';
+import { IBrowserlessOptions, IBrowserlessStats, Feature } from './types.d';
 
 import {
   asyncWebHandler,
@@ -21,30 +39,8 @@ import {
   generateChromeTarget,
   lstat,
   queryValidation,
-  mkdir,
 } from './utils';
 
-import {
-  content as contentSchema,
-  fn as fnSchema,
-  pdf as pdfSchema,
-  scrape as scrapeSchema,
-  screenshot as screenshotSchema,
-  stats as statsSchema,
-} from './schemas';
-
-import {
-  after as downloadAfter,
-  before as downloadBefore,
-} from './apis/download';
-
-import {
-  after as screencastAfter,
-  before as screenCastBefore,
-} from './apis/screencast';
-
-const version = require('../version.json');
-const protocol = require('../protocol.json');
 const rimraf = require('rimraf');
 
 // Browserless fn's
@@ -77,7 +73,6 @@ interface IGetRoutes {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
-  enableHeapdump: boolean;
 }
 
 export const getRoutes = ({
@@ -88,7 +83,6 @@ export const getRoutes = ({
   workspaceDir,
   disabledFeatures,
   enableAPIGet,
-  enableHeapdump,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -129,6 +123,41 @@ export const getRoutes = ({
 
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
+    router.get('/metrics/total', async (_req, res) => {
+      const metrics = await getMetrics();
+      const totals = metrics.reduce(
+        (accum, metric) => ({
+          successful: accum.successful + metric.successful,
+          error: accum.error + metric.error,
+          queued: accum.queued + metric.queued,
+          rejected: accum.rejected + metric.rejected,
+          unhealthy: accum.unhealthy + metric.unhealthy,
+          timedout: accum.timedout + metric.timedout,
+          totalTime: accum.totalTime + metric.totalTime,
+          meanTime: accum.meanTime + metric.meanTime,
+          maxTime: Math.max(accum.maxTime, metric.maxTime),
+          minTime: Math.min(accum.minTime, metric.minTime),
+          maxConcurrent: Math.max(accum.maxConcurrent, metric.maxConcurrent),
+          sessionTimes: [...accum.sessionTimes, ...metric.sessionTimes],
+        }),
+        {
+          successful: 0,
+          error: 0,
+          queued: 0,
+          rejected: 0,
+          unhealthy: 0,
+          totalTime: 0,
+          meanTime: 0,
+          maxTime: 0,
+          minTime: 0,
+          maxConcurrent: 0,
+          timedout: 0,
+          sessionTimes: [],
+        },
+      );
+      totals.meanTime = totals.meanTime / metrics.length;
+      return res.json(totals);
+    });
   }
 
   if (!disabledFeatures.includes(Features.CONFIG_ENDPOINT)) {
@@ -470,7 +499,13 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
-    router.get('/json/protocol', (_req, res) => res.json(protocol));
+    router.get('/json/protocol', async (_req, res) => {
+      const protocol = await chromeHelper
+        .getProtocolJSON()
+        .catch((err) => res.status(400).send(err.message));
+
+      return res.json(protocol);
+    });
 
     router.get(
       '/json/new',
@@ -491,9 +526,12 @@ export const getRoutes = ({
       }),
     );
 
-    router.get('/json/version', (req, res) => {
+    router.get('/json/version', async (req, res) => {
       const baseUrl = req.get('host');
       const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
+      const version = await chromeHelper
+        .getVersionJSON()
+        .catch((err) => res.status(400).send(err.message));
 
       return res.json({
         ...version,
@@ -533,22 +571,6 @@ export const getRoutes = ({
         return res.json(pages);
       }),
     );
-  }
-
-  if (enableHeapdump) {
-    const heapdump = require('heapdump');
-    router.get('/heapdump', (_req, res) => {
-      const heapLocation = path.join(workspaceDir, `heap-${Date.now()}`);
-      heapdump.writeSnapshot(heapLocation, (err: Error) => {
-        if (err) {
-          return res.status(500).send(err.message);
-        }
-
-        return res.sendFile(heapLocation, (_err: Error) =>
-          rimraf(heapLocation, _.noop),
-        );
-      });
-    });
   }
 
   return router;

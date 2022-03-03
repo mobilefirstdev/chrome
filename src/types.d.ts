@@ -1,11 +1,16 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+
+import { IncomingMessage, ServerResponse } from 'http';
+
+import net from 'net';
+
+import url from 'url';
+
 import { Response } from 'express';
 import { BrowserServer, LaunchOptions } from 'playwright-core';
-import { IncomingMessage, ServerResponse } from 'http';
-import net from 'net';
+
 import puppeteer from 'puppeteer';
-import url from 'url';
 
 export interface IChromeDriver {
   port: number;
@@ -30,6 +35,10 @@ export interface IBrowser extends puppeteer.Browser {
   _wsEndpoint: string;
   _browserServer: BrowserServer | puppeteer.Browser;
   _pages: puppeteer.Page[];
+}
+
+export interface IPage extends puppeteer.Page {
+  _browserless_setup: boolean;
 }
 
 export interface ISession {
@@ -59,6 +68,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   playwrightProxy?: LaunchOptions['proxy'];
   playwright: boolean;
   stealth: boolean;
+  meta: unknown;
 }
 
 export interface IBefore {
@@ -82,6 +92,7 @@ export interface IRunHTTP {
   headless?: boolean;
   ignoreDefaultArgs?: boolean | string[];
   builtin?: string[];
+  envVars?: string[];
   external?: string[];
 }
 
@@ -100,6 +111,7 @@ export interface IBrowserlessStats {
   meanTime: number;
   maxTime: number;
   minTime: number;
+  maxConcurrent: number;
 }
 
 export interface ISandboxOpts {
@@ -141,7 +153,6 @@ interface IBrowserlessServerConfiguration {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
-  enableHeapdump: boolean;
   socketBehavior: 'http' | 'close';
 }
 
@@ -154,6 +165,7 @@ export interface IChromeServiceConfiguration {
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];
+  functionEnvVars: string[];
   maxMemory: number;
   maxCPU: number;
   keepAlive: boolean;
@@ -161,12 +173,6 @@ export interface IChromeServiceConfiguration {
   enableCors: boolean;
   singleRun: boolean;
   token: string | null;
-}
-
-export interface IBefore {
-  page: puppeteer.Page;
-  code: string;
-  debug: (message: string) => void;
 }
 
 export interface IAfter {
@@ -302,22 +308,24 @@ export interface IDevtoolsJSON {
 }
 
 export interface IBeforeHookRequest {
-  req: IHTTPRequest;
+  req: IncomingMessage;
   res?: ServerResponse;
   socket?: net.Socket;
   head?: Buffer;
 }
 
 export interface IAfterHookResponse {
-  req: IHTTPRequest | IWebdriverStartHTTP;
+  req: IncomingMessage | IWebdriverStartHTTP;
   start: number;
   status: 'successful' | 'error' | 'timedout';
 }
 
 export interface IBrowserHook {
   browser: IBrowser;
+  meta: unknown;
 }
 
 export interface IPageHook {
   page: puppeteer.Page;
+  meta: unknown;
 }

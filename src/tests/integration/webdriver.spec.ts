@@ -1,12 +1,10 @@
-import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
+import { IBrowserlessOptions } from '../../types.d';
 import { sleep } from '../../utils';
 
-import { IBrowserlessOptions } from '../../types';
 import {
   defaultParams,
   getChromeProcesses,
-  killChrome,
   throws,
   webdriverOpts,
 } from './utils';
@@ -20,8 +18,6 @@ describe('Browserless Chrome Webdriver', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('runs concurrently', async () => {
@@ -52,41 +48,6 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.successful).toEqual(2);
     expect(browserless.currentStat.rejected).toEqual(0);
     expect(browserless.currentStat.queued).toEqual(0);
-  });
-
-  it('runs with a minimal start POST body', async () => {
-    const minBody = {
-      capabilities: {
-        alwaysMatch: {
-          'goog:chromeOptions': {
-            w3c: true,
-            args: ['--no-sandbox'],
-          },
-          pageLoadStrategy: 'normal',
-        },
-        firstMatch: [{}],
-      },
-    };
-    const params = defaultParams();
-    const browserless = start(params);
-
-    await browserless.startServer();
-
-    async function run() {
-      const res = await fetch(
-        `http://127.0.0.1:${params.port}/webdriver/session`,
-        {
-          body: JSON.stringify(minBody),
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-        },
-      );
-      expect(res.status).toEqual(200);
-    }
-
-    await run();
   });
 
   it('handles driver close calls', async () => {
