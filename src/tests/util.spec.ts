@@ -1,8 +1,8 @@
-import { PassThrough } from 'stream';
 import { IncomingMessage } from 'http';
+import { PassThrough } from 'stream';
 
+import { IBrowser } from '../types.d';
 import * as utils from '../utils';
-import { IBrowser } from '../types';
 
 const getArgs = (overrides = {}) => ({
   args: [],
@@ -15,6 +15,7 @@ const getArgs = (overrides = {}) => ({
   userDataDir: undefined,
   playwright: false,
   stealth: false,
+  meta: null,
   ...overrides,
 });
 
@@ -91,6 +92,23 @@ describe(`Utils`, () => {
           utils.canPreboot(
             getArgs({ args: ['--headless', '--user-data-dir=/my-data'] }),
             getArgs({ args: ['--window-size=1920,1080', '--headless'] }),
+          ),
+        ).toBe(false);
+      });
+    });
+
+    describe('playwright', () => {
+      it('returns false when playwright connects', () => {
+        expect(utils.canPreboot(getArgs({ playwright: true }), getArgs())).toBe(
+          false,
+        );
+      });
+
+      it('returns false when default args says playwright: true', () => {
+        expect(
+          utils.canPreboot(
+            getArgs({ playwright: true }),
+            getArgs({ playwright: true }),
           ),
         ).toBe(false);
       });

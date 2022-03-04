@@ -1,43 +1,78 @@
 /*
- * screenshot function
+ * pdf function
  *
  * Example invocation:
  *
- * screenshot({
+ * pdf({
  *  page: await browser.newPage(),
  *  context: {
  *    url: 'https://example.com',
- *    type: 'jpeg',
- *    quality: 50,
- *    fullPage: false,
- *    omitBackground: true,
- * },
+ *    html: '<div>example</div>
+ *    options: {
+ *      ...
+ *      see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagepdfoptions for available options
+ *    }
+ *  },
  * });
  *
  * @param args - object - An object with a puppeteer page object, and context.
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
-module.exports = async function screenshot({ page, context } = {}) {
+const buildPages = async (page, opts = {}) => {
+  const pdftk = require('node-pdftk');
+  const pageBuffers = [];
+  let complete = false;
+  let pageCount = 1;
+
+  // If ranges are specified, don't render them all
+  if (opts.pageRanges) {
+    return page.pdf(opts);
+  }
+
+  while (!complete) {
+    try {
+      const buffer = await page.pdf({
+        ...opts,
+        pageRanges: pageCount.toString(),
+      });
+      pageBuffers.push(buffer);
+      pageCount = pageCount + 1;
+    } catch (error) {
+      if (
+        error.message &&
+        error.message.includes('Page range exceeds page count')
+      ) {
+        complete = true;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return pdftk.input(pageBuffers).cat().compress().output();
+};
+
+module.exports = async function pdf({ page, context }) {
   const {
     authenticate = null,
     addScriptTag = [],
     addStyleTag = [],
-    url = null,
     cookies = [],
     emulateMedia,
+    viewport,
+    html,
+    options,
+    url = null,
+    rotate = null,
+    safeMode,
     gotoOptions,
-    html = '',
-    userAgent = '',
-    manipulate,
-    options = {},
-    selector = null,
     rejectRequestPattern = [],
     rejectResourceTypes = [],
     requestInterceptors = [],
-    setExtraHTTPHeaders = null,
+    setExtraHTTPHeaders,
     setJavaScriptEnabled = null,
-    viewport,
+    userAgent = null,
     waitFor,
     waitForFunction,
   } = context;
@@ -99,7 +134,8 @@ module.exports = async function screenshot({ page, context } = {}) {
     await page.setUserAgent(userAgent);
   }
 
-  let response = null;
+<<<<<<< HEAD
+  let response = {};
 
   // Disable page timeout
   await page.setDefaultNavigationTimeout(0);
@@ -120,6 +156,12 @@ module.exports = async function screenshot({ page, context } = {}) {
 
     response = await page.goto('http://localhost', gotoOptions);
   }
+=======
+  const response =
+    url !== null
+      ? await page.goto(url, gotoOptions)
+      : await page.setContent(html, gotoOptions);
+>>>>>>> upstream
 
   if (addStyleTag.length) {
     for (tag in addStyleTag) {
@@ -135,14 +177,12 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
-      const isSelector = await page.evaluate((s) => {
-        try {
-          document.createDocumentFragment().querySelector(s);
-        } catch (e) {
-          return false;
-        }
-        return true;
-      }, waitFor);
+      const isSelector = await page
+        .evaluate(
+          `document.createDocumentFragment().querySelector("${waitFor}")`,
+        )
+        .then(() => true)
+        .catch(() => false);
 
       await (isSelector
         ? page.waitForSelector(waitFor)
@@ -154,13 +194,23 @@ module.exports = async function screenshot({ page, context } = {}) {
     await page.waitForFunction(waitForFunction);
   }
 
-  const data =
-    selector !== null
-      ? await (async () => {
-          const elementHandle = await page.$(selector);
-          return await elementHandle.screenshot(options);
-        })()
-      : await page.screenshot(options);
+  let data = safeMode
+    ? await buildPages(page, options)
+    : await page.pdf(options);
+
+  if (rotate) {
+    const pdftk = require('node-pdftk');
+    const rotateValue =
+      rotate === 90
+        ? '1-endright'
+        : rotate === -90
+        ? '1-endleft'
+        : rotate === 180
+        ? '1-enddown'
+        : '';
+
+    data = await pdftk.input(data).rotate(rotateValue).output();
+  }
 
   const headers = {
     'x-response-url': response?.url().substring(0, 1000),
@@ -170,52 +220,9 @@ module.exports = async function screenshot({ page, context } = {}) {
     'x-response-port': response?.remoteAddress().port,
   };
 
-  let contentType = options.type ? options.type : 'png';
-
-  if (options.encoding && options.encoding === 'base64') {
-    contentType = 'text';
-  }
-
-  if (manipulate) {
-    const sharp = require('sharp');
-    const chain = sharp(data);
-
-    if (manipulate.resize) {
-      chain.resize(manipulate.resize);
-    }
-
-    if (manipulate.extend) {
-      chain.extend({
-        top: parseInt(manipulate.extend.top) ?? 0,
-        left: parseInt(manipulate.extend.left) ?? 0,
-        bottom: parseInt(manipulate.extend.bottom) ?? 0,
-        right: parseInt(manipulate.extend.right) ?? 0,
-        background: manipulate.extend.background
-      })
-    }
-
-    if (manipulate.flip) {
-      chain.flip();
-    }
-
-    if (manipulate.flop) {
-      chain.flop();
-    }
-
-    if (manipulate.rotate) {
-      chain.rotate(manipulate.rotate);
-    }
-
-    return {
-      data: await chain.toBuffer(),
-      headers,
-      type: contentType,
-    };
-  }
-
   return {
     data,
     headers,
-    type: contentType,
+    type: 'pdf',
   };
 };

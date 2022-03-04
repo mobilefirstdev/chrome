@@ -1,11 +1,13 @@
 import fs from 'fs';
+
+import os from 'os';
+
 import debug from 'debug';
 import _ from 'lodash';
-import os from 'os';
 import untildify from 'untildify';
 
 import { Features, isFeature } from './features';
-import { Feature } from './types';
+import { Feature } from './types.d';
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
@@ -37,7 +39,7 @@ const getDisabledFeatures = () => {
       `Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(
         Features,
       )
-        .map(([_, v]) => v)
+        .map(([, v]) => v)
         .join(',')}]`,
     );
   });
@@ -78,7 +80,7 @@ const parseNumber = (
   return parsed;
 };
 
-const parseSocketBehavior = (behavior: string = 'http'): 'http' | 'close' => {
+const parseSocketBehavior = (behavior = 'http'): 'http' | 'close' => {
   if (behavior !== 'http' && behavior !== 'close') {
     console.warn(
       `Unknown socket behavior of "${behavior}" passed in, using "http"`,
@@ -168,10 +170,6 @@ export const ENABLE_API_GET: boolean = parseJSONParam(
   false,
 );
 export const TOKEN: string | null = process.env.TOKEN || null;
-export const ENABLE_HEAP_DUMP: boolean = parseJSONParam(
-  process.env.ENABLE_HEAP_DUMP,
-  false,
-);
 export const ALLOW_FILE_PROTOCOL: boolean = parseJSONParam(
   process.env.ALLOW_FILE_PROTOCOL,
   false,
@@ -185,6 +183,10 @@ export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(
 export const FUNCTION_BUILT_INS: string[] = parseJSONParam(
   process.env.FUNCTION_BUILT_INS,
   REQUIRED_INTERNALS,
+);
+export const FUNCTION_ENV_VARS: string[] = parseJSONParam(
+  process.env.FUNCTION_ENV_VARS,
+  [],
 );
 export const FUNCTION_ENABLE_INCOGNITO_MODE: boolean = parseJSONParam(
   process.env.FUNCTION_ENABLE_INCOGNITO_MODE,

@@ -99,6 +99,7 @@ module.exports = async function screenshot({ page, context } = {}) {
     await page.setUserAgent(userAgent);
   }
 
+<<<<<<< HEAD
   let response = null;
 
   // Disable page timeout
@@ -120,6 +121,12 @@ module.exports = async function screenshot({ page, context } = {}) {
 
     response = await page.goto('http://localhost', gotoOptions);
   }
+=======
+  const response =
+    url !== null
+      ? await page.goto(url, gotoOptions)
+      : await page.setContent(html, gotoOptions);
+>>>>>>> upstream
 
   if (addStyleTag.length) {
     for (tag in addStyleTag) {
@@ -135,14 +142,12 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
-      const isSelector = await page.evaluate((s) => {
-        try {
-          document.createDocumentFragment().querySelector(s);
-        } catch (e) {
-          return false;
-        }
-        return true;
-      }, waitFor);
+      const isSelector = await page
+        .evaluate(
+          `document.createDocumentFragment().querySelector("${waitFor}")`,
+        )
+        .then(() => true)
+        .catch(() => false);
 
       await (isSelector
         ? page.waitForSelector(waitFor)

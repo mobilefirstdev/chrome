@@ -1,7 +1,9 @@
 import fetch from 'node-fetch';
+
 import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../types';
-import { defaultParams, killChrome } from './utils';
+import { IBrowserlessOptions } from '../../types.d';
+
+import { defaultParams } from './utils';
 
 describe('Browserless Chrome HTTP', () => {
   let browserless: BrowserlessServer;
@@ -10,8 +12,6 @@ describe('Browserless Chrome HTTP', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('allows requests to /json/version', async () => {
@@ -228,6 +228,38 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows functions that use ENV variables from the main process', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        functionEnvVars: ['SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS'],
+      });
+      await browserless.startServer();
+
+      const body = {
+        code: `
+        module.exports = ({ page }) => {
+          return Promise.resolve({
+            data: process.env.SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS,
+            type: 'application/text',
+          });
+        }`,
+        context: {},
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => res.text())
+        .then((res) => {
+          expect(res).toBe('bar');
+        });
+    });
+
     it('allows functions that require external modules', async () => {
       const params = defaultParams();
       const browserless = start({
@@ -287,9 +319,7 @@ describe('Browserless Chrome HTTP', () => {
       })
         .then((res) => res.text())
         .then((res) => {
-          expect(res).toContain(
-            `The module 'request' is not whitelisted in VM.`,
-          );
+          expect(res).toContain(`Cannot find module 'request'`);
         });
     });
 
@@ -322,9 +352,7 @@ describe('Browserless Chrome HTTP', () => {
       })
         .then((res) => res.text())
         .then((res) => {
-          expect(res).toContain(
-            `The module 'node-fetch' is not whitelisted in VM`,
-          );
+          expect(res).toContain(`Cannot find module 'node-fetch'`);
         });
     });
 
@@ -672,6 +700,28 @@ describe('Browserless Chrome HTTP', () => {
           height: 0,
           width: 0,
         },
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
+    });
+
+    it('allows to specify selector', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        selector: 'h1',
       };
 
       return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
@@ -1513,7 +1563,7 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   describe('/stats', () => {
-    jest.setTimeout(10000);
+    jest.setTimeout(15000);
 
     it('allows requests', async () => {
       const params = defaultParams();

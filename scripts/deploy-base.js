@@ -1,15 +1,18 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 const child = require('child_process');
 const util = require('util');
+
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
 
-const BASE = 'budsense/chrome';
+const BASE = 'browserless/base';
+const TARGET_ARCH = ['linux/amd64', 'linux/arm64/v8'];
 const VERSION = process.env.VERSION;
 
 if (!VERSION) {
   throw new Error(
-    `Expected a $VERSION env variable to tag the budsense/base repo, but none was found.`,
+    `Expected a $VERSION env variable to tag the ${BASE} repo, but none was found.`,
   );
 }
 
@@ -24,12 +27,14 @@ const logExec = (cmd) => {
 };
 
 const buildBase = async () => {
-  await logExec(`docker build -t ${BASE}:latest -t ${BASE}:${VERSION} ./base`);
-  await logExec(`docker push ${BASE}:latest`);
-  await logExec(`docker push ${BASE}:${VERSION}`);
+  await logExec(
+    `docker buildx build --quiet --push --platform ${TARGET_ARCH.join(
+      ',',
+    )} -t ${BASE}:latest -t ${BASE}:${VERSION} ./base`,
+  );
 };
 
-async function deploy() {
+(async function deploy() {
   // Build a fresh base image first, then subsequent
   // docker builds are super fast.
   await buildBase();
@@ -38,6 +43,4 @@ async function deploy() {
     `docker images -a | grep "${BASE}" | awk '{print $3}' | xargs docker rmi`,
   );
   debug(`Complete! Cleaning up file-system and exiting.`);
-}
-
-deploy();
+})();
