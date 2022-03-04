@@ -25,10 +25,11 @@ module.exports = async function screenshot({ page, context } = {}) {
     addStyleTag = [],
     url = null,
     cookies = [],
+    emulateMedia,
     gotoOptions,
     html = '',
     userAgent = '',
-    manipulate = null,
+    manipulate,
     options = {},
     rejectRequestPattern = [],
     rejectResourceTypes = [],
@@ -74,6 +75,15 @@ module.exports = async function screenshot({ page, context } = {}) {
       }
       return req.continue();
     });
+  }
+
+  if (emulateMedia) {
+    // Run the appropriate emulateMedia method, making sure it's bound properly to the page object
+    // @todo remove when support drops for 3.x.x
+    const emulateMediaFn = (page.emulateMedia || page.emulateMediaType).bind(
+      page,
+    );
+    await emulateMediaFn(emulateMedia);
   }
 
   if (cookies.length) {
@@ -159,6 +169,16 @@ module.exports = async function screenshot({ page, context } = {}) {
 
     if (manipulate.resize) {
       chain.resize(manipulate.resize);
+    }
+
+    if (manipulate.extend) {
+      chain.extend({
+        top: parseInt(manipulate.extend.top) ?? 0,
+        left: parseInt(manipulate.extend.left) ?? 0,
+        bottom: parseInt(manipulate.extend.bottom) ?? 0,
+        right: parseInt(manipulate.extend.right) ?? 0,
+        background: manipulate.extend.background
+      })
     }
 
     if (manipulate.flip) {
