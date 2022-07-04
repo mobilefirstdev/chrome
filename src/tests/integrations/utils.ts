@@ -16,6 +16,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   disabledFeatures: [],
   enableAPIGet: true,
   enableCors: false,
+  enableHeapdump: false,
   errorAlertURL: null,
   exitOnHealthFailure: false,
   functionBuiltIns: ['url'],
@@ -51,5 +52,5 @@ export const getChromeProcesses = () => {
 };
 
 export const webdriverOpts = {
-  args: ['--headless', '--no-sandbox'],
+  args: ['--headless', '--no-sandbox', '--log-level=OFF'],
 };

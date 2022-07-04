@@ -1,5 +1,58 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.51.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.54.0...master)
 - Dependency updates.
+
+# [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
+- Dependency updates.
+- Move to using `mocha` for better esm support.
+- Drop puppeteer `13.6.0` in favor of `14.4.1`.
+- Utilize puppeteer `14.4.1` for `chrome-stable`.
+- New internal `getCDPClient` for loading a page's CPD connection.
+
+# [v1.53.0](https://github.com/browserless/chrome/compare/v1.52.1...v1.53.0)
+- Dependency updates.
+- Bump `browserless:base` to `1.16.0`.
+- Drop `--quiet` from deploy scripts.
+- `arm64` support for latest as well as puppeteer at versions 9,10 and 13.
+- Update puppeteer 13 from `13.5.2` to `13.6.0` (revision `982053`).
+- README updates.
+
+# [v1.52.1](https://github.com/browserless/chrome/compare/v1.52.0...v1.52.1)
+- Dependency updates.
+- Playwright example correction in README.md.
+- Use revision `970485` for puppeteer 13.x.x, `latest`, chrome-stable and `arm64`.
+- When using `KEEPALIVE` and `PREBOOT`, don't create new blank pages, and use the existing one instead.
+
+# [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
+- Dependency updates.
+- Added in new fonts: `fonts-gfs-neohellenic`.
+- Minor code formatting changes.
+- Drop puppeteer@13.1.3 in favor of 13.5.2.
+- Make `heapdump` an optional dependency as it's not always used, and add it back in.
+- Utilize `fs/promise` vs home-rolled promisified utils.
+- Fix an issue where PREBOOT and KEEPALIVE might return an `undefined` browser.
+- Logging when file-protocol requests happen and terminate a session.
+- Move the browser process exit listener into the puppeteer-provider for better session cleanup.
+- Allow "headfull" playwright sessions.
+- Don't `await` chrome-helper's closing of the browser as it's not truly async.
+- Remove `body-parser` in favor of `express`'s JSON and other parsers.
+- Fixes an issue where using a user-data-dir that doesn't exist causes chrome to crash.
+- Add in more unit and integration tests.
+
+# [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
+- Dependency updates.
+- Added in new fonts: `fonts-gfs-neohellenic`.
+- Minor code formatting changes.
+- Drop puppeteer@13.1.3 in favor of 13.5.2.
+- Make `heapdump` an optional dependency as it's not always used, and add it back in.
+- Utilize `fs/promise` vs home-rolled promisified utils.
+- Fix an issue where PREBOOT and KEEPALIVE might return an `undefined` browser.
+- Logging when file-protocol requests happen and terminate a session.
+- Move the browser process exit listener into the puppeteer-provider for better session cleanup.
+- Allow "headfull" playwright sessions.
+- Don't `await` chrome-helper's closing of the browser as it's not truly async.
+- Remove `body-parser` in favor of `express`'s JSON and other parsers.
+- Fixes an issue where using a user-data-dir that doesn't exist causes chrome to crash.
+- Add in more unit and integration tests.
 
 # [v1.51.1](https://github.com/browserless/chrome/compare/v1.51.0...v1.51.1)
 - Dependency updates.

@@ -2,8 +2,7 @@ import { mkdir } from 'fs/promises';
 import path from 'path';
 
 import archiver from 'archiver';
-import bodyParser from 'body-parser';
-import { Request, Response, Router } from 'express';
+import express, { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
 
@@ -50,17 +49,17 @@ const scrape = fnLoader('scrape');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
 
-const jsonParser = bodyParser.json({
+const jsonParser = express.json({
   limit: MAX_PAYLOAD_SIZE,
   type: ['application/json'],
 });
 
-const jsParser = bodyParser.text({
+const jsParser = express.text({
   limit: MAX_PAYLOAD_SIZE,
   type: ['text/plain', 'application/javascript'],
 });
 
-const htmlParser = bodyParser.text({
+const htmlParser = express.text({
   limit: MAX_PAYLOAD_SIZE,
   type: ['text/plain', 'text/html'],
 });
@@ -73,6 +72,7 @@ interface IGetRoutes {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
 }
 
 export const getRoutes = ({
@@ -83,6 +83,7 @@ export const getRoutes = ({
   workspaceDir,
   disabledFeatures,
   enableAPIGet,
+  enableHeapdump,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -571,6 +572,20 @@ export const getRoutes = ({
         return res.json(pages);
       }),
     );
+  }
+
+  if (enableHeapdump) {
+    const heapdump = require('heapdump');
+    router.get('/heapdump', (_req, res) => {
+      const heapLocation = path.join(workspaceDir, `heap-${Date.now()}`);
+      heapdump.writeSnapshot(heapLocation, (err: Error) => {
+        if (err) {
+          return res.status(500).send(err.message);
+        }
+
+        return res.sendFile(heapLocation, () => rimraf(heapLocation, _.noop));
+      });
+    });
   }
 
   return router;

@@ -56,6 +56,7 @@ import {
   fetchJson,
   getDebug,
   getUserDataDir,
+  getCDPClient,
   injectHostIntoSession,
   mkDataDir,
   rimraf,
@@ -164,7 +165,12 @@ const setupPage = async ({
     return;
   }
 
-  const client = _.get(page, '_client', _.noop);
+  const client = getCDPClient(pptrPage);
+
+  if (!client) {
+    throw new Error(`Error setting up page, CDP client doesn't exist!`);
+  }
+
   const id = _.get(page, '_target._targetId', 'Unknown');
 
   await pageHook({ page, meta });
@@ -208,6 +214,7 @@ const setupPage = async ({
     debug(`Setting up file:// protocol request rejection`);
     page.on('request', async (request) => {
       if (request.url().startsWith('file://')) {
+        debug(`File protocol request found in request, terminating`);
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
@@ -215,6 +222,7 @@ const setupPage = async ({
 
     page.on('response', async (response) => {
       if (response.url().startsWith('file://')) {
+        debug(`File protocol request found in response, terminating`);
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
@@ -288,13 +296,6 @@ const setupBrowser = async ({
   browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
   await browserHook({ browser, meta });
-
-  browser._browserProcess.once('exit', (code, signal) => {
-    debug(
-      `Browser process exited with code ${code} and signal ${signal}, cleaning up`,
-    );
-    closeBrowser(browser);
-  });
 
   browser.on('targetcreated', async (target) => {
     try {
@@ -556,14 +557,13 @@ export const launchChrome = async (
     launchArgs.args.push(`--remote-debugging-pipe`);
   }
 
-  // Reset playwright to a workable state since it can't run headfull or use
+  // Reset playwright to a workable state since it can't run head-full or use
   // a user-data-dir
   if (isPlaywright) {
     launchArgs.args = launchArgs.args.filter(
       (arg) =>
         !arg.startsWith('--user-data-dir') && arg !== '--remote-debugging-pipe',
     );
-    launchArgs.headless = true;
   }
 
   debug(
@@ -577,7 +577,6 @@ export const launchChrome = async (
     : launchArgs.playwright
     ? chromium.launchServer({
         ...launchArgs,
-        headless: true,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth

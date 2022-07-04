@@ -1,15 +1,12 @@
-#!/usr/bin/env node
-/* eslint-disable no-undef */
-const child = require('child_process');
-const util = require('util');
+#!/usr/bin/env zx
 
-const debug = require('debug')('browserless-docker-deploy');
+/* eslint-disable no-undef */
+const fs = require('fs/promises');
+
 const getPort = require('get-port');
 const { map, noop } = require('lodash');
 const fetch = require('node-fetch');
 const puppeteer = require('puppeteer');
-
-const exec = util.promisify(child.exec);
 
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
@@ -18,23 +15,14 @@ const BASE_VERSION = process.env.BASE_VERSION;
 
 if (!BASE_VERSION) {
   throw new Error(
-    `Expected a $BASE_VERSION env variable to tag the ${REPO} repo, but none was found.`,
+    `Expected a $BASE_VERSION env variable to tag the ${REPO} repo, but none was found.`
   );
 }
 
-const logExec = (cmd) => {
-  debug(`  "${cmd}"`);
-  return exec(cmd).then(({ stdout, stderr }) => {
-    if (stderr.trim().length > 0) {
-      console.warn(stderr.slice(-500));
-    }
-    return stdout.trim();
-  });
-};
-
 async function cleanup() {
-  await logExec(`git reset origin/master --hard`);
-  await logExec(`rm -rf node_modules`);
+  await $`rm -rf browser.json`;
+  await $`git reset origin/master --hard`;
+  await $`rm -rf node_modules`;
 }
 
 const deployVersion = async (tags, pptrVersion) => {
@@ -42,7 +30,7 @@ const deployVersion = async (tags, pptrVersion) => {
 
   if (!versionInfo) {
     throw new Error(
-      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`,
+      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`
     );
   }
 
@@ -53,53 +41,49 @@ const deployVersion = async (tags, pptrVersion) => {
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
 
-  debug(
-    `Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`,
-  );
+  process.env.PUPPETEER_CHROMIUM_REVISION = puppeteerChromiumRevision;
+  process.env.USE_CHROME_STABLE = false;
+  process.env.CHROMEDRIVER_SKIP_DOWNLOAD = true;
+  process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = true;
 
-  await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
-    ${
-      isChromeStable
-        ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true'
-        : ''
-    } \
-    npm install --silent --save --save-exact puppeteer@${puppeteerVersion}
-  `);
+  if (isChromeStable) {
+    process.env.USE_CHROME_STABLE = true;
+    process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
+  }
 
-  await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
-    ${
-      isChromeStable
-        ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true'
-        : ''
-    } \
-    npm run postinstall
-  `);
+  await $`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
+  await $`npm run postinstall`;
 
-  debug(`Fetching protocol JSON versioning for docker labels`);
   const port = await getPort();
   const browser = await puppeteer.launch({
     executablePath: isChromeStable
       ? '/usr/bin/google-chrome'
       : puppeteer
           .executablePath()
-          .replace(/[0-9]{6}/g, puppeteerChromiumRevision),
+          .replace(/[0-9]{6,7}/g, puppeteerChromiumRevision),
     args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
   });
 
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
   const versionJson = await res.json();
   const debuggerVersion = versionJson['WebKit-Version'].match(
-    /\s\(@(\b[0-9a-f]{5,40}\b)/,
+    /\s\(@(\b[0-9a-f]{5,40}\b)/
   )[1];
 
-  await browser.close();
+  await Promise.all([
+    fs.writeFile('browser.json', JSON.stringify({
+      ...versionJson,
+      puppeteerVersion,
+      debuggerVersion,
+    })),
+    browser.close(),
+  ]);
 
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
-  await logExec(`docker buildx build \
+  await $`docker buildx build \
   --push \
-  --quiet \
   --platform ${platform} \
   --build-arg "BASE_VERSION=${BASE_VERSION}" \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
@@ -113,19 +97,16 @@ const deployVersion = async (tags, pptrVersion) => {
   --label "puppeteerVersion=${puppeteerVersion}" \
   -t ${REPO}:${patchBranch} \
   -t ${REPO}:${minorBranch} \
-  -t ${REPO}:${majorBranch} .`);
+  -t ${REPO}:${majorBranch} .`;
 
-  await logExec(`git add --force hosts.json`).catch(noop);
-
-  await logExec(
-    `git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`,
-  ).catch(noop);
-
-  await logExec(`git tag --force ${patchBranch}`);
-
-  await logExec(
-    `git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`,
-  ).catch(noop);
+  await $`git add --force hosts.json browser.json`.catch(noop);
+  await $`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`.catch(
+    noop
+  );
+  await $`git tag --force ${patchBranch}`;
+  await $`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`.catch(
+    noop
+  );
 
   // git reset for next update
   await cleanup();
@@ -154,12 +135,6 @@ const deployVersion = async (tags, pptrVersion) => {
           console.log(`Error in build (${version}): `, error);
           process.exit(1);
         }),
-    Promise.resolve(),
+    Promise.resolve()
   );
-
-  await logExec(
-    `docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi -f`,
-  );
-
-  debug(`Complete! Cleaning up file-system and exiting.`);
 })();
