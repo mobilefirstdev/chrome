@@ -31,21 +31,6 @@
     "lint": "eslint src --ext .ts --fix"
   },
   "chromeVersions": {
-    "puppeteer-1.20.0": {
-      "puppeteer": "1.20.0",
-      "chromeRevision": "686378",
-      "platform": "linux/amd64"
-    },
-    "puppeteer-5.4.1": {
-      "puppeteer": "5.4.1",
-      "chromeRevision": "809590",
-      "platform": "linux/amd64"
-    },
-    "puppeteer-7.1.0": {
-      "puppeteer": "7.1.0",
-      "chromeRevision": "848005",
-      "platform": "linux/amd64"
-    },
     "puppeteer-9.1.1": {
       "puppeteer": "9.1.1",
       "chromeRevision": "869685",
@@ -71,9 +56,6 @@
     "puppeteer-14.4.1",
     "puppeteer-10.4.0",
     "puppeteer-9.1.1",
-    "puppeteer-7.1.0",
-    "puppeteer-5.4.1",
-    "puppeteer-1.20.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
