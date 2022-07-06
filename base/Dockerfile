@@ -86,7 +86,7 @@ RUN apt-get -y -qq --no-install-recommends install \
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then apt-get -qq --no-install-recommends install adobe-flashplugin; fi
 
 # Install NodeJS
-RUN curl --silent --location https://deb.nodesource.com/setup_16.x | bash - && \
+RUN curl --silent --location https://deb.nodesource.com/setup_18.x | bash - && \
   apt-get -qq install nodejs && \
   npm install -g npm@latest
 

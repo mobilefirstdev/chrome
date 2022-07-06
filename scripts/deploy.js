@@ -10,8 +10,8 @@ const puppeteer = require('puppeteer');
 
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
-const REPO = 'browserless/chrome';
-const BASE_VERSION = process.env.BASE_VERSION;
+const REPO = 'budsense/chrome';
+const BASE_VERSION = 'latest';
 
 if (!BASE_VERSION) {
   throw new Error(
@@ -43,8 +43,8 @@ const deployVersion = async (tags, pptrVersion) => {
 
   process.env.PUPPETEER_CHROMIUM_REVISION = puppeteerChromiumRevision;
   process.env.USE_CHROME_STABLE = false;
-  process.env.CHROMEDRIVER_SKIP_DOWNLOAD = true;
-  process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = true;
+  process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
+  process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = false;
 
   if (isChromeStable) {
     process.env.USE_CHROME_STABLE = true;
@@ -109,7 +109,7 @@ const deployVersion = async (tags, pptrVersion) => {
   );
 
   // git reset for next update
-  await cleanup();
+  // await cleanup();
 };
 
 (async function deploy() {

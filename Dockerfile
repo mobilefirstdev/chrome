@@ -1,5 +1,5 @@
 ARG BASE_VERSION=latest
-FROM browserless/base:${BASE_VERSION}
+FROM budsense/base:${BASE_VERSION}
 
 # Build Args
 ARG USE_CHROME_STABLE
