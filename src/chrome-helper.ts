@@ -14,8 +14,9 @@ import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
 import fetch from 'node-fetch';
-import { chromium, BrowserServer } from 'playwright-core';
-import puppeteer from 'puppeteer';
+// @ts-ignore no types
+import { BrowserServer } from 'playwright-core';
+import puppeteer, { Browser, Page } from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import treeKill from 'tree-kill';
@@ -41,6 +42,8 @@ import {
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook, puppeteerHook } from './hooks';
+import { getPlaywright } from './playwright-provider';
+
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -51,6 +54,7 @@ import {
   IHTTPRequest,
   IDevtoolsJSON,
   IPage,
+  PuppeteerRequest,
 } from './types.d';
 import {
   fetchJson,
@@ -103,7 +107,7 @@ const removeDataDir = (dir: string | null) => {
   }
 };
 
-const networkBlock = (request: puppeteer.Request) => {
+const networkBlock = (request: PuppeteerRequest) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
   if (blacklist.includes(domain)) {
@@ -137,9 +141,9 @@ const getTargets = async ({
 }): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
 
 const isPuppeteer = (
-  browserServer: puppeteer.Browser | BrowserServer,
-): browserServer is puppeteer.Browser => {
-  return (browserServer as puppeteer.Browser).disconnect !== undefined;
+  browserServer: Browser | BrowserServer,
+): browserServer is Browser => {
+  return (browserServer as Browser).disconnect !== undefined;
 };
 
 const setupPage = async ({
@@ -152,7 +156,7 @@ const setupPage = async ({
   meta,
 }: {
   browser: IBrowser;
-  page: puppeteer.Page;
+  page: Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId: string | null;
@@ -260,7 +264,7 @@ const setupBrowser = async ({
   browserServer,
   meta,
 }: {
-  browser: puppeteer.Browser;
+  browser: Browser;
   browserWSEndpoint: string;
   isUsingTempDataDir: boolean;
   browserlessDataDir: string | null;
@@ -271,7 +275,7 @@ const setupBrowser = async ({
   keepalive: number | null;
   windowSize?: IWindowSize;
   prebooted: boolean;
-  browserServer: BrowserServer | puppeteer.Browser;
+  browserServer: BrowserServer | Browser;
   meta: unknown;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
@@ -321,7 +325,7 @@ const setupBrowser = async ({
   debug('Finding prior pages');
 
   const pages = (await Promise.race([browser.pages(), sleep(2500)])) as
-    | puppeteer.Page[]
+    | Page[]
     | undefined;
 
   if (pages && pages.length) {
@@ -481,6 +485,14 @@ export const convertUrlParamsToLaunchOpts = (
   const keepalive = _.isNaN(parsedKeepalive) ? undefined : parsedKeepalive;
   const parsedIgnoreDefaultArgs = parseIgnoreDefaultArgs(urlParts.query);
 
+  const playwrightVersion = (() => {
+    const uAgent = req.headers['user-agent'];
+    if (!uAgent || !uAgent.startsWith('Playwright/')) return undefined;
+
+    const matches = uAgent.match(/(?<=Playwright\/)(\d+(\.\d+))/);
+    return _.first(matches);
+  })();
+
   return {
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
@@ -494,6 +506,7 @@ export const convertUrlParamsToLaunchOpts = (
     pauseOnConnect: !_.isUndefined(pause),
     playwright,
     playwrightProxy,
+    playwrightVersion,
     slowMo: parseInt(slowMo as string, 10) || undefined,
     trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
     userDataDir: (userDataDir as string) || DEFAULT_USER_DATA_DIR,
@@ -546,9 +559,11 @@ export const launchChrome = async (
     await mkDataDir(explodedPath);
     opts.userDataDir = explodedPath;
     launchArgs.args.push(`--user-data-dir=${explodedPath}`);
+    launchArgs.userDataDir = explodedPath;
   } else {
     browserlessDataDir = opts.userDataDir || (await getUserDataDir());
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
+    launchArgs.userDataDir = browserlessDataDir;
   }
 
   // Only use debugging pipe when headless except for playwright which
@@ -572,22 +587,23 @@ export const launchChrome = async (
 
   const injectedPuppeteer = await puppeteerHook(opts);
 
+  // as any due to compatibility issues with pptr 16 <
+  const finalLaunch = launchArgs as any;
   const browserServerPromise = injectedPuppeteer
-    ? injectedPuppeteer.launch(launchArgs)
+    ? injectedPuppeteer.launch(finalLaunch)
     : launchArgs.playwright
-    ? chromium.launchServer({
+    ? (await getPlaywright(opts.playwrightVersion)).launchServer({
         ...launchArgs,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
-    ? pptrExtra.launch(launchArgs)
-    : puppeteer.launch(launchArgs);
+    ? pptrExtra.launch(finalLaunch)
+    : puppeteer.launch(finalLaunch);
 
-  const browserServer = await browserServerPromise.catch((e) => {
+  const browserServer = await browserServerPromise.catch((e: Error) => {
     removeDataDir(browserlessDataDir);
     throw e;
   });
-
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
   ).catch((e) => {
@@ -608,7 +624,7 @@ export const launchChrome = async (
       isUsingTempDataDir,
       keepalive: opts.keepalive || null,
       pauseOnConnect: opts.pauseOnConnect,
-      process: browserServer.process(),
+      process: browserServer.process() as ChildProcess,
       trackingId: opts.trackingId || null,
       windowSize: undefined,
       prebooted: isPreboot,
@@ -629,7 +645,7 @@ export const launchChromeDriver = async ({
 }: IBrowserlessSessionOptions) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
-    let iBrowser = null;
+    let iBrowser: null | IBrowser = null;
     const flags = [
       '--url-base=webdriver',
       '--verbose',
@@ -642,16 +658,22 @@ export const launchChromeDriver = async ({
     const findPort = new Transform({
       transform: async (chunk, _, done) => {
         const message = chunk.toString();
-        const match = message.match(/DevTools listening on (ws:\/\/.*)/);
+        const webDriverRegex = /(?:"webSocketDebuggerUrl": "(ws:\/\/.*))"/g;
+        const cdpRegex = /DevTools listening on (ws:\/\/.*)/;
+
+        const match = message.match(cdpRegex) || webDriverRegex.exec(message);
 
         if (match) {
           chromeProcess.stderr && chromeProcess.stderr.unpipe(findPort);
           const [, browserWSEndpoint] = match;
           debug(`Attaching to chromedriver browser on ${browserWSEndpoint}`);
 
-          const browser: puppeteer.Browser = stealth
+          const browser: Browser = stealth
             ? await pptrExtra.connect({ browserWSEndpoint })
             : await puppeteer.connect({ browserWSEndpoint });
+
+          // Chromedriver boot-loops if it can't hook into an existing page
+          (await browser.pages()).length || (await browser.newPage());
 
           iBrowser = await setupBrowser({
             blockAds,
@@ -680,8 +702,11 @@ export const launchChromeDriver = async ({
 
     chromeProcess.stderr.pipe(findPort);
 
+    // browser is "lazily" loaded here and not established until
+    // later in selenium's lifecycle, hence why it's a "getter"
+    // function and not passed via reference
     return resolve({
-      browser: iBrowser,
+      browser: () => iBrowser,
       chromeProcess,
       port,
     });
@@ -736,10 +761,6 @@ export const getProtocolJSON = async () => {
 
 export const killAll = async () => {
   await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));
-
-  runningBrowsers = [];
-
-  return;
 };
 
 export const kill = (id: string) => {
@@ -781,7 +802,26 @@ export const closeBrowser = (browser: IBrowser) => {
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
-      browser._browserServer.close();
+      const races = [sleep(1000), browser._browserServer.close()];
+      const proc = browser.process();
+
+      if (proc) {
+        races.push(new Promise((r) => proc.once('close', r)));
+      }
+
+      // Allow listeners to close before we garbage collect, which
+      // puppeteer-extra packages need
+      Promise.race(races).then(() => {
+        debug(`Garbage collecting and removing listeners`);
+        browser._pages.forEach((page) => {
+          page.removeAllListeners();
+          // @ts-ignore force any garbage collection by nulling the page(s)
+          page = null;
+        });
+        browser.removeAllListeners();
+        // @ts-ignore force any garbage collection by nulling the browser
+        browser = null;
+      });
 
       if (browser._browserProcess.pid) {
         treeKill(browser._browserProcess.pid, 'SIGKILL');
@@ -790,15 +830,6 @@ export const closeBrowser = (browser: IBrowser) => {
       if (browser._browserlessDataDir) {
         removeDataDir(browser._browserlessDataDir);
       }
-
-      browser._pages.forEach((page) => {
-        page.removeAllListeners();
-        // @ts-ignore force any garbage collection by nulling the page(s)
-        page = null;
-      });
-      browser.removeAllListeners();
-      // @ts-ignore force any garbage collection by nulling the browser
-      browser = null;
     });
   }
 };

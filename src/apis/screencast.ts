@@ -1,6 +1,8 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 
+import { Page } from 'puppeteer';
+
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';
 import { id, getCDPClient } from '../utils';
@@ -25,7 +27,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
 
   // Setup page handlers
   const setup = async () =>
-    await renderer.evaluateHandle((downloadName) => {
+    await renderer.evaluateHandle((downloadName: string) => {
       const screencastAPI = class {
         private canvas: HTMLCanvasElement;
         private ctx: CanvasRenderingContext2D;
@@ -105,12 +107,17 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     }, downloadName);
 
   const startScreencast = async () => {
-    const viewport = page.viewport();
+    const viewport = page.viewport() as ReturnType<Page['viewport']>;
+
+    if (!viewport) {
+      throw new Error(`Couldn't obtain the page's viewport!`);
+    }
     screencastAPI = await setup();
     await page.bringToFront();
 
     await renderer.evaluateHandle(
-      (screencastAPI, width, height) => screencastAPI.start({ width, height }),
+      (screencastAPI: any, width: number, height: number) =>
+        screencastAPI.start({ width, height }),
       screencastAPI,
       viewport.width,
       viewport.height,
@@ -127,7 +134,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
       'Page.screencastFrame',
       ({ data, sessionId }: { data: string; sessionId: number }) => {
         renderer.evaluateHandle(
-          (screencastAPI, data) => screencastAPI.draw(data),
+          (screencastAPI: any, data: any) => screencastAPI.draw(data),
           screencastAPI,
           data,
         );
@@ -142,7 +149,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     await client.send('Page.stopScreencast');
     await renderer.bringToFront();
     await renderer.evaluateHandle(
-      (screencastAPI) => screencastAPI.stop(),
+      (screencastAPI: any) => screencastAPI.stop(),
       screencastAPI,
     );
   };

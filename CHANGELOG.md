@@ -1,5 +1,59 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.54.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.58.0...master)
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.57.0...v1.58.0)
+- Dependency updates.
+- Documentation link fixes.
+- Add new required lib `libu2f-udev`.
+- Support for puppeteer@19.7.5.
+- Supports playwright versions: `1.27`, `1.28`, `1.29`, `1.30` and `1.31`.
+- Better internal TypeScript definitions.
+- Print's a few extra log-lines at startup for links to various resources.
+- `/kill/all` now supports rebooting when PREBOOT is turned on.
+- Fixes an issue with chromedriver boot-looping in modern versions.
+- Adds support for `--headless=new`.
+- Fixes an issue where user-data-dirs aren't deleted due to a crashed container.
+
+# [v1.57.0](https://github.com/browserless/chrome/compare/v1.56.0...v1.57.0)
+- Dependency updates.
+- Add back in `puppeteer@13.1.3` for PDF/Screenshot performance.
+- Replace `puppeteer@18.0.5` in favor of `puppeteer@19.2.2`.
+- Better puppeteer install/binary path lookups.
+- Support for the following playwright versions via the /playwright path:
+  - 1.23.3
+  - 1.24.2
+  - 1.25.2
+  - 1.26.1
+  - 1.27.1
+
+# [v1.56.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.56.0)
+- Dependency updates.
+- Fixes various puppeteer issues with regards to revision information and browser-fetching.
+- Fixes a Selenium issue where failed browsers can cause session to zombie.
+- Small fix for route error handling.
+- Better selenium W3C support.
+
+# [v1.55.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.54.1)
+**Potentially Breaking**
+- Update base OS from Ubuntu 20.04 to Ubuntu 22.04.
+- Drops `path` support for both `addScriptTag` and `addStyleTag`. Use `url` or inject content directly.
+---
+- Dependency updates.
+- We now support multiple versions of playwright via `playwright-core`. browserless checks the User-Agent string and tries to load a compatible playwright server at runtime in order to avoid breakages between versions.
+- New `scrollPage` boolean parameter for the screenshot and other relevant APIs.
+- browserless now writes appropriately formatted HTTP and WebSocket messages for non-2xx responses.
+- Better CI coverage with prior puppeteer versions.
+- Adds back a `browser.json` file in our docker images for easier CDP-related queries.
+- A new `PORT` arg is available at build time in order to specify a PORT to listen onto.
+- Updated links for browserless documentation in docs.
+
+# [v1.54.1](https://github.com/browserless/chrome/compare/v1.54.1...v1.54.0)
+- Dependency updates.
+- Add `browser.json` file to git tags.
+- Prettier fixes on source.
+- deploy.js file fixes for creating production tags.
+- Fix: add the `userDataDir` option so that we don't fill disks when using `stealth`.
+- Fix: allow `disconnect` listeners to fire before closing.
 
 # [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
 - Dependency updates.
@@ -285,7 +339,7 @@
 - Dependency updates.
 - Sets a system-default font of Ubuntu for most sites that use `system-ui` in their font declarations.
 - Fixes health-check failure webhooks.
-- New `PROXY_HOST`, `PROXY_PORT` and `PROXY_SSL` for external load-balancers. [See docsite for more info](https://docs.browserless.io/docs/docker.html#using-a-proxy).
+- New `PROXY_HOST`, `PROXY_PORT` and `PROXY_SSL` for external load-balancers. [See docsite for more info](https://www.browserless.io/docs/docker.html#using-a-proxy).
 - Moves over to GH actions over Travis for CI.
 
 # [1.27.0](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
@@ -525,7 +579,7 @@
 
 # 1.1.0
 
-With 1.1.0 we offer a refined way of dealing with both downloads and uploads. Both use-cases are tightly coupled to the file-system, and can leave you scratching your head as to what's going one. For more information and detailed documentation, please refer to our doc-site at https://docs.browserless.io/
+With 1.1.0 we offer a refined way of dealing with both downloads and uploads. Both use-cases are tightly coupled to the file-system, and can leave you scratching your head as to what's going one. For more information and detailed documentation, please refer to our doc-site at https://www.browserless.io/
 
 ## Minor Changes
 - New `WORKSPACE_DIR` variable for controlling where browserless stores files and uploads.

@@ -211,7 +211,12 @@ export class BrowserlessServer {
     process.on('SIGTERM', boundClose);
     process.on('SIGINT', boundClose);
 
-    debug(require('./config'), `Final configuration`);
+    const config = require('./config');
+    debug(`Using configuration: `);
+    debug(config);
+
+    if (config.PRINT_NETWORK_INFO) util.printNetworkInfo(debug, config.PORT);
+    if (config.PRINT_GET_STARTED_LINKS) util.printGetStartedLinks(debug);
   }
 
   public async getMetrics() {
@@ -281,7 +286,7 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    await this.puppeteerProvider.start();
+    await this.puppeteerProvider.startChromeInstances();
 
     return new Promise(async (r) => {
       // Make sure we have http server setup with some headroom
@@ -511,13 +516,15 @@ export class BrowserlessServer {
       debug(
         `${req.url}: ${message}. Behavior of "http" set, writing response and closing.`,
       );
-      const httpResponse = util.dedent(`${header}
-        Content-Type: text/plain; charset=UTF-8
-        Content-Encoding: UTF-8
-        Accept-Ranges: bytes
-        Connection: keep-alive
-
-        ${message}`);
+      const httpResponse = [
+        header,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Encoding: UTF-8',
+        'Accept-Ranges: bytes',
+        'Connection: keep-alive',
+        '\r\n',
+        message,
+      ].join('\r\n');
 
       socket.write(httpResponse);
       socket.end();
@@ -543,6 +550,7 @@ export class BrowserlessServer {
       minTime: _.min(stat.sessionTimes) || 0,
       meanTime: _.mean(stat.sessionTimes) || 0,
       totalTime: _.sum(stat.sessionTimes),
+      units: _.sumBy(stat.sessionTimes, (t) => Math.ceil(t / 30000)),
     };
   }
 
@@ -663,6 +671,7 @@ export class BrowserlessServer {
       minTime: 0,
       meanTime: 0,
       maxConcurrent: 0,
+      units: 0,
       sessionTimes: [],
     };
   }
@@ -709,6 +718,7 @@ export class BrowserlessServer {
         minTime: aggregatedStats.minTime,
         meanTime: aggregatedStats.meanTime,
         maxConcurrent: aggregatedStats.maxConcurrent,
+        units: aggregatedStats.units,
       })}`,
     );
 

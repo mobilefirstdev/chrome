@@ -1,3 +1,5 @@
+/* global document, module, require, setTimeout, window */
+
 /*
  * screenshot function
  *
@@ -18,6 +20,39 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
+const scrollThroughPage = async (page) => {
+  // Scroll to page end to trigger lazy loading elements
+  const viewport = (await page.viewport()) || {
+    width: 640,
+    height: 480,
+  }; // default Puppeteer viewport
+
+  await page.evaluate((bottomThreshold) => {
+    const scrollInterval = 100;
+    const scrollStep = Math.floor(window.innerHeight / 2);
+
+    function bottomPos() {
+      return window.pageYOffset + window.innerHeight;
+    }
+
+    return new Promise((resolve) => {
+      function scrollDown() {
+        window.scrollBy(0, scrollStep);
+
+        if (document.body.scrollHeight - bottomPos() < bottomThreshold) {
+          window.scrollTo(0, 0);
+          setTimeout(resolve, 500);
+          return;
+        }
+
+        setTimeout(scrollDown, scrollInterval);
+      }
+
+      scrollDown();
+    });
+  }, viewport.height);
+};
+
 module.exports = async function screenshot({ page, context } = {}) {
   const {
     authenticate = null,
@@ -31,6 +66,7 @@ module.exports = async function screenshot({ page, context } = {}) {
     userAgent = '',
     manipulate,
     options = {},
+    scrollPage = null,
     selector = null,
     rejectRequestPattern = [],
     rejectResourceTypes = [],
@@ -122,13 +158,13 @@ module.exports = async function screenshot({ page, context } = {}) {
   }
 
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }
@@ -152,6 +188,10 @@ module.exports = async function screenshot({ page, context } = {}) {
     }
   } else if (waitForFunction && typeof waitForFunction === 'string') {
     await page.waitForFunction(waitForFunction);
+  }
+
+  if (scrollPage) {
+    await scrollThroughPage(page);
   }
 
   const data =

@@ -10,7 +10,7 @@ import util from 'util';
 import cookie from 'cookie';
 import dbg from 'debug';
 import express from 'express';
-
+import ip from 'ip';
 import { Schema } from 'joi';
 import _ from 'lodash';
 
@@ -40,6 +40,7 @@ const { CHROME_BINARY_LOCATION } = require('../env');
 const mkdtemp = util.promisify(fs.mkdtemp);
 
 const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const browserlessDataDirPrefix = 'browserless-data-dir-';
 
 export const jsonProtocolPrefix = 'BROWSERLESS';
 export const lstat = util.promisify(fs.lstat);
@@ -455,8 +456,6 @@ export const fnLoader = (fnName: string) =>
     'utf8',
   );
 
-const browserlessDataDirPrefix = 'browserless-data-dir-';
-
 export const getUserDataDir = () =>
   mkdtemp(path.join(os.tmpdir(), browserlessDataDirPrefix));
 
@@ -488,7 +487,16 @@ export const getTimeoutParam = (
     req.url &&
     req.url.includes('webdriver') &&
     Object.prototype.hasOwnProperty.call(req, 'body')
-      ? _.get(req, ['body', 'desiredCapabilities', 'browserless.timeout'], null)
+      ? _.get(
+          req,
+          ['body', 'desiredCapabilities', 'browserless.timeout'],
+          null,
+        ) ||
+        _.get(
+          req,
+          ['body', 'capabilities', 'alwaysMatch', 'browserless:timeout'], // Selenium 4.5 > calls
+          null,
+        )
       : _.get(req, 'parsed.query.timeout', null);
 
   if (_.isArray(payloadTimer)) {
@@ -700,7 +708,22 @@ export const getCDPClient = (page: Page): CDPSession => {
   // @ts-ignore using internal CDP client
   const c = page._client;
 
-  return typeof c === 'function' ?
-    c.call(page) :
-    c;
+  return typeof c === 'function' ? c.call(page) : c;
+};
+
+export const printGetStartedLinks = (debug: dbg.Debugger) => {
+  debug(`
+Get started at\t https://www.browserless.io/docs/start
+Get a license at\t https://www.browserless.io/sign-up?type=commercial
+Get support at\t https://www.browserless.io/contact
+
+Happy coding!
+`);
+};
+
+export const printNetworkInfo = (debug: dbg.Debugger, port: number) => {
+  debug(`\n
+Running on port ${port}
+\tLocalhost\t ws:localhost:${port}
+\tLocal network\t ws:${ip.address()}:${port}`);
 };
