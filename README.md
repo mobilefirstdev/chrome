@@ -26,7 +26,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 
 1. [Full documentation site](https://www.browserless.io/docs/start)
 2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
-3. [Docker](https://hub.docker.com/r/browserless/chrome/)
+3. [Docker](https://hub.docker.com/r/budsense/chrome/)
 4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LTRmMWU5NjQ0MTQ2YTE2YmU3MzdjNmVlMmU4MThjM2UxODNmNzNlZjVkY2U2NjdkMzYyNTgyZTBiMmE3Nzg0MzY)
 
 # Features
@@ -52,13 +52,13 @@ Your application still runs the script itself (much like a database interaction)
 
 > See more options on our [full documentation site](https://www.browserless.io/docs/docker-quickstart).
 
-1. `docker run -p 3000:3000 browserless/chrome`
+1. `docker run -p 3000:3000 budsense/chrome`
 2. Visit `http://localhost:3000/` to use the interactive debugger.
-3. See more at our [docker repository](https://hub.docker.com/r/browserless/chrome/).
+3. See more at our [docker repository](https://hub.docker.com/r/budsense/chrome/).
 
 # Live Debugger
 
-![Browserless Debugger](https://raw.githubusercontent.com/browserless/chrome/master/assets/demo.gif)
+![Browserless Debugger](https://raw.githubusercontent.com/budsense/chrome/master/assets/demo.gif)
 
 browserless comes with _two_ methods of debugging. The first is a web-based debugger for trying out small chunks of code without setting up a new project. You can see our public-facing [debugger here](https://chrome.browserless.io/).
 
@@ -94,7 +94,7 @@ location / {
 You can pull `latest` or more recent puppeteer versions for the arm64 platform (M1 Macs):
 
 ```sh
-docker pull --platform=linux/arm64 browserless/chrome:latest
+docker pull --platform=linux/arm64 budsense/chrome:latest
 ```
 
 For those still here trying to build this: first if you're on a amd64 machine (non-M1 Mac) you'll need to setup multi-platform builds. There's a lot of good resources out there to read about this, however you'll need to ensure you're on the latest docker with experimental features enabled.
@@ -113,7 +113,7 @@ docker buildx inspect --bootstrap
 Once complete, you can specify a platform target and build against it. In our production tags, we build the `latest` tag as well as a few production tags (like `1-puppeteer-13.6.0`) with `arm64` support, which is what we'll use in the example below.
 
 ```sh
-docker buildx build --platform linux/arm64 -t browserless/chrome:latest .
+docker buildx build --platform linux/arm64 -t budsense/chrome:latest .
 ```
 
 > Disclaimer about arm64: In order to support arm64 inside of docker, we utilize some functionality inside of playwright to download a arm64-compatible linux build. Since most distributions out there don't have an arm64-specific build of Chromium, this means that puppeteer's chromium doesn't exist for arm64 (as far as we're aware). This, in short, means that the chromium version inside of the arm builds isn't matched _exactly_ for the version of puppeteer that it comes bundled with. Most of the time this will go unnoticed, however if you have an issue it's possible that it's because the version of chromium in the arm64-builds isn't an exact match.

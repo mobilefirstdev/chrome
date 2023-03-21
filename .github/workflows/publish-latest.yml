@@ -31,7 +31,7 @@ jobs:
         with:
           builder: ${{ steps.buildx.outputs.name }}
           tags: |
-            browserless/base:latest
+            budsense/base:latest
           context: ./base
           push: true
           platforms: |
@@ -45,7 +45,7 @@ jobs:
             BASE_VERSION=latest
           builder: ${{ steps.buildx.outputs.name }}
           tags: |
-            browserless/chrome:latest
+            budsense/chrome:latest
           context: .
           push: true
           platforms: |
