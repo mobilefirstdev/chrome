@@ -22,9 +22,9 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       --build-arg "PUPPETEER_CHROMIUM_REVISION=${chromeVersion}" \
       --build-arg "PUPPETEER_VERSION=${version}" \
       --build-arg "USE_CHROME_STABLE=false" \
-      -t browserless/chrome:${version} \
+      -t budsense/chrome:${version} \
       .`;
-      await $`docker run --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:${version}`;
+      await $`docker run --ipc=host -e CI=true --entrypoint ./test.sh budsense/chrome:${version}`;
     } catch (err) {
       console.error(
         `Error running tests for ${version} of puppeteer: ${err.message}`,

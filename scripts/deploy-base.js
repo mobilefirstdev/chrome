@@ -1,6 +1,6 @@
 #!/usr/bin/env zx
 /* eslint-disable no-undef */
-const BASE = 'browserless/base';
+const BASE = 'budsense/base';
 const TARGET_ARCH = ['linux/amd64', 'linux/arm64/v8'];
 const VERSION = process.env.VERSION;
 

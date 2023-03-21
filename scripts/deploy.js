@@ -11,7 +11,7 @@ const argv = require('yargs').argv;
 
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
-const REPO = 'browserless/chrome';
+const REPO = 'budsense/chrome';
 const BASE_VERSION = argv.base;
 
 if (!BASE_VERSION) {
