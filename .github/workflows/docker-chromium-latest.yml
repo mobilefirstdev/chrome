@@ -8,11 +8,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Build the latest browserless/base image
-      run: docker build -t browserless/base:latest base
+    - name: Build the latest budsense/base image
+      run: docker build -t budsense/base:latest base
 
-    - name: Build the latest browserless/chrome image
-      run: docker build --build-arg BASE_VERSION=latest -t browserless/chrome:latest .
+    - name: Build the latest budsense/chrome image
+      run: docker build --build-arg BASE_VERSION=latest -t budsense/chrome:latest .
 
     - name: Test the latest image
-      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:latest
+      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh budsense/chrome:latest

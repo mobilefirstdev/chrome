@@ -2,7 +2,7 @@
 /* eslint-disable no-undef */
 const BASE = 'budsense/base';
 const TARGET_ARCH = ['linux/amd64', 'linux/arm64/v8'];
-const VERSION = 'latest';
+const VERSION = process.env.VERSION;
 
 if (!VERSION) {
   throw new Error(

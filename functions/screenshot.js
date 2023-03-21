@@ -60,11 +60,10 @@ module.exports = async function screenshot({ page, context } = {}) {
     addStyleTag = [],
     url = null,
     cookies = [],
-    emulateMedia,
     gotoOptions,
     html = '',
     userAgent = '',
-    manipulate,
+    manipulate = null,
     options = {},
     scrollPage = null,
     selector = null,
@@ -75,7 +74,6 @@ module.exports = async function screenshot({ page, context } = {}) {
     setJavaScriptEnabled = null,
     viewport,
     waitFor,
-    waitForFunction,
   } = context;
 
   if (authenticate) {
@@ -114,15 +112,6 @@ module.exports = async function screenshot({ page, context } = {}) {
     });
   }
 
-  if (emulateMedia) {
-    // Run the appropriate emulateMedia method, making sure it's bound properly to the page object
-    // @todo remove when support drops for 3.x.x
-    const emulateMediaFn = (page.emulateMedia || page.emulateMediaType).bind(
-      page,
-    );
-    await emulateMediaFn(emulateMedia);
-  }
-
   if (cookies.length) {
     await page.setCookie(...cookies);
   }
@@ -135,27 +124,10 @@ module.exports = async function screenshot({ page, context } = {}) {
     await page.setUserAgent(userAgent);
   }
 
-  let response = null;
-
-  // Disable page timeout
-  await page.setDefaultNavigationTimeout(0);
-  await page.setDefaultTimeout(0);
-
-  if (url !== null) {
-    response = await page.goto(url, gotoOptions);
-  } else {
-    // Whilst there is no way of waiting for all requests to finish with setContent,
-    // you can simulate a webrequest this way
-    // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
-
-    await page.setRequestInterception(true);
-    page.once('request', (request) => {
-      request.respond({ body: html });
-      page.on('request', (request) => request.continue());
-    });
-
-    response = await page.goto('http://localhost', gotoOptions);
-  }
+  const response =
+    url !== null
+      ? await page.goto(url, gotoOptions)
+      : await page.setContent(html, gotoOptions);
 
   if (addStyleTag.length) {
     for (const tag in addStyleTag) {
@@ -171,14 +143,12 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
-      const isSelector = await page.evaluate((s) => {
-        try {
-          document.createDocumentFragment().querySelector(s);
-        } catch (e) {
-          return false;
-        }
-        return true;
-      }, waitFor);
+      const isSelector = await page
+        .evaluate(
+          `document.createDocumentFragment().querySelector("${waitFor}")`,
+        )
+        .then(() => true)
+        .catch(() => false);
 
       await (isSelector
         ? page.waitForSelector(waitFor)
@@ -186,8 +156,6 @@ module.exports = async function screenshot({ page, context } = {}) {
     } else {
       await new Promise((r) => setTimeout(r, waitFor));
     }
-  } else if (waitForFunction && typeof waitForFunction === 'string') {
-    await page.waitForFunction(waitForFunction);
   }
 
   if (scrollPage) {
@@ -222,16 +190,6 @@ module.exports = async function screenshot({ page, context } = {}) {
 
     if (manipulate.resize) {
       chain.resize(manipulate.resize);
-    }
-
-    if (manipulate.extend) {
-      chain.extend({
-        top: parseInt(manipulate.extend.top) ?? 0,
-        left: parseInt(manipulate.extend.left) ?? 0,
-        bottom: parseInt(manipulate.extend.bottom) ?? 0,
-        right: parseInt(manipulate.extend.right) ?? 0,
-        background: manipulate.extend.background
-      })
     }
 
     if (manipulate.flip) {

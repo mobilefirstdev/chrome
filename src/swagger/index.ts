@@ -16,7 +16,7 @@ export default {
   openapi: '3.0.0',
   customSiteTitle: 'browserless Swagger documentation',
   info: {
-    title: 'browserless/chrome API',
+    title: 'budsense/chrome API',
     version,
     description:
       'The REST API for browserless. Primarily composed of a "browser" API, which allows for interacting with the browser(s) themselves, and management APIs which reveal meta-data about the container, running-sessions and more. Some of these APIs are available for usage-based, but not all.',

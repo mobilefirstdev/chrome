@@ -1,4 +1,4 @@
-ARG BASE_VERSION=latest
+ARG BASE_VERSION=1.21.0
 FROM budsense/base:${BASE_VERSION}
 
 # Build Args

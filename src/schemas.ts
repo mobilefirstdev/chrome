@@ -1,7 +1,6 @@
 import Joi from 'joi';
 
 const waitFor = [Joi.string(), Joi.number()];
-const waitForFunction = Joi.string();
 const userAgent = Joi.string();
 
 const gotoOptions = Joi.object().keys({
@@ -111,17 +110,9 @@ export const screenshot = Joi.object()
     addScriptTag,
     addStyleTag,
     cookies,
-    emulateMedia: Joi.string().valid('screen', 'print'),
     gotoOptions,
     html: Joi.string(),
     manipulate: Joi.object().keys({
-      extend: Joi.object().keys({
-        background: Joi.string(),
-        bottom: Joi.string(),
-        left: Joi.string(),
-        right: Joi.string(),
-        top: Joi.string(),
-      }),
       resize: Joi.object().keys({
         width: Joi.number().integer().positive(),
         height: Joi.number().integer().positive(),
@@ -171,7 +162,6 @@ export const screenshot = Joi.object()
     userAgent,
     viewport,
     waitFor,
-    waitForFunction,
   })
   .xor('url', 'html');
 
@@ -192,7 +182,6 @@ export const content = Joi.object().keys({
   waitFor,
 });
 
-// @ts-ignore
 export const pdf = Joi.object()
   .keys({
     authenticate,
@@ -246,7 +235,6 @@ export const pdf = Joi.object()
     userAgent,
     viewport,
     waitFor,
-    waitForFunction,
   })
   .xor('url', 'html');
 

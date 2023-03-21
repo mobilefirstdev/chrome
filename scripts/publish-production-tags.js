@@ -56,24 +56,24 @@ const deployVersion = async (tags, v) => {
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
-  -t browserless/chrome:${patchBranch} \
-  -t browserless/chrome:${minorBranch} \
-  -t browserless/chrome:${majorBranch} .`,
+  -t budsense/chrome:${patchBranch} \
+  -t budsense/chrome:${minorBranch} \
+  -t budsense/chrome:${majorBranch} .`,
     ),
   );
 
   // Test the image prior to pushing it
-  await $`docker run --platform linux/amd64 --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:${patchBranch}`;
+  await $`docker run --platform linux/amd64 --ipc=host -e CI=true --entrypoint ./test.sh budsense/chrome:${patchBranch}`;
 
   await Promise.all([
-    $`docker push browserless/chrome:${patchBranch}`,
-    $`docker push browserless/chrome:${minorBranch}`,
-    $`docker push browserless/chrome:${majorBranch}`,
+    $`docker push budsense/chrome:${patchBranch}`,
+    $`docker push budsense/chrome:${minorBranch}`,
+    $`docker push budsense/chrome:${majorBranch}`,
   ]);
 };
 
 (async function deploy() {
-  await $`docker buildx build --push --platform linux/amd64,linux/arm64 -t browserless/base:${version} base`;
+  await $`docker buildx build --push --platform linux/amd64,linux/arm64 -t budsense/base:${version} base`;
 
   const buildVersions = map(releaseVersions, (pV) => {
     const [major, minor, patch] = version.split('.');
