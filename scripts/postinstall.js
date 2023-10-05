@@ -5,12 +5,12 @@ const os = require('os');
 const path = require('path');
 const { promisify } = require('util');
 
+const chromeFetcher = require('@puppeteer/browsers');
 const extract = require('extract-zip');
 const fs = require('fs-extra');
 const _ = require('lodash');
 const fetch = require('node-fetch');
 const { installBrowsersForNpmInstall } = require('playwright-core/lib/server');
-const puppeteer = require('puppeteer');
 const rimraf = require('rimraf');
 
 const execAsync = promisify(nodeExec);
@@ -29,15 +29,19 @@ const exec = async (command) => {
 
 const {
   CHROME_BINARY_LOCATION,
+  CHROME_BINARY_TYPE,
   IS_DOCKER,
   USE_CHROME_STABLE,
+  IS_CHROME_FOR_TESTING,
   PUPPETEER_CHROMIUM_REVISION,
   PUPPETEER_BINARY_LOCATION,
   PLATFORM,
   WINDOWS,
   MAC,
   LINUX_ARM64,
+  PUPPETEER_CACHE_DIR,
 } = require('../env');
+const { chromedriverBinary } = require('../package.json');
 
 const browserlessTmpDir = path.join(
   os.tmpdir(),
@@ -48,14 +52,66 @@ const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
 
 // @TODO: Fix this revision once devtools app works again
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
-const chromedriverUrl = (() => {
-  if (PLATFORM === MAC)
-    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`;
-  if (PLATFORM === WINDOWS)
-    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`;
 
-  // Linux
-  return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
+const getChromeForTestingURL = (baseUrl, format, revision) => {
+  const platform = process.platform;
+  const arch = process.arch;
+  let filename;
+
+  switch (true) {
+    case platform === 'win32' && arch === 'x64':
+      filename = 'win64/chromedriver-win64.zip';
+      break;
+    case platform === 'win32' && arch === 'x32':
+      filename = 'win32/chromedriver-win32.zip';
+      break;
+    case platform === 'darwin' && arch === 'arm64':
+      filename = 'mac-arm64/chromedriver-mac-arm64.zip';
+      break;
+    case platform === 'darwin' && arch === 'x64':
+      filename = 'mac-x64/chromedriver-mac-x64.zip';
+      break;
+    default:
+      filename = 'linux64/chromedriver-linux64.zip';
+      break;
+  }
+
+  return format
+    .replace(`{BASE_URL}`, baseUrl)
+    .replace(`{REVISION}`, revision)
+    .replace(`{FILENAME}`, filename);
+};
+
+const getChromiumURL = (baseUrl, format, revision) => {
+  const platform = process.platform;
+  const filename =
+    platform === 'win32'
+      ? `Win%2F${revision}%2Fchromedriver_win32.zip`
+      : platform === 'darwin'
+      ? `Mac%2F${revision}%2Fchromedriver_mac64.zip`
+      : `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
+
+  return format
+    .replace(`{BASE_URL}`, baseUrl)
+    .replace(`{REVISION}`, revision)
+    .replace(`{FILENAME}`, filename);
+};
+
+// Starting from version 20, Puppeteer started using Chrome for Testing instead of
+// Chromium revisions, which are stored in a different server. That's why the URL
+// has to be built depending on the version.
+// The file structure of the zip file also changed, so it also has to be handled differently
+const chromedriverUrl = (() => {
+  const chromeDriver = chromedriverBinary[CHROME_BINARY_TYPE];
+  const getter = IS_CHROME_FOR_TESTING
+    ? getChromeForTestingURL
+    : getChromiumURL;
+
+  return getter(
+    chromeDriver.baseUrl,
+    chromeDriver.format,
+    PUPPETEER_CHROMIUM_REVISION,
+  );
 })();
 
 const downloadUrlToDirectory = (url, dir) =>
@@ -132,9 +188,19 @@ const downloadChromium = () => {
     `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
 
-  return puppeteer
-    .createBrowserFetcher({ product: 'chrome' })
-    .download(PUPPETEER_CHROMIUM_REVISION);
+  return chromeFetcher.install({
+    cacheDir: PUPPETEER_CACHE_DIR,
+    // Pulls revisions from different servers. See the comment at line 54
+    browser: IS_CHROME_FOR_TESTING
+      ? chromeFetcher.Browser.CHROME
+      : chromeFetcher.Browser.CHROMIUM,
+    buildId: PUPPETEER_CHROMIUM_REVISION,
+  });
+};
+
+const getBasenameFromUrl = (urlStr) => {
+  const url = new URL(urlStr);
+  return path.basename(url.pathname, path.extname(url.pathname));
 };
 
 const downloadChromedriver = () => {
@@ -150,13 +216,18 @@ const downloadChromedriver = () => {
   );
 
   const chromedriverZipFolder = (() => {
+    // Binaries hosted on edgedl.me server are inside a deterministic filepath: the unzipped folder
+    // is going to have the same name as the file.
+    if (IS_CHROME_FOR_TESTING) return getBasenameFromUrl(chromedriverUrl);
+
     if (PLATFORM === MAC) return 'chromedriver_mac64';
     if (PLATFORM === WINDOWS) return 'chromedriver_win32';
     return 'chromedriver_linux64'; // Linux
   })();
 
-  const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver`);
+  const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver.zip`);
   const chromedriverBin = `chromedriver${PLATFORM === WINDOWS ? '.exe' : ''}`;
+
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
     chromedriverZipFolder,
@@ -169,7 +240,7 @@ const downloadChromedriver = () => {
     'chromedriver',
     'lib',
     'chromedriver',
-    'chromedriver',
+    chromedriverBin,
   );
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
@@ -233,7 +304,8 @@ const downloadDevTools = () => {
         })();
       }
     } catch (err) {
-      console.error(`Error unpacking assets:\n${err.message}\n${err.stack}`);
+      console.log(`Error unpacking assets:`);
+      console.error(err);
       reject(err);
       process.exit(1);
     } finally {

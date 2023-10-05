@@ -7,7 +7,9 @@ import _ from 'lodash';
 import untildify from 'untildify';
 
 import { Features, isFeature } from './features';
-import { Feature } from './types.d';
+import { Feature, HeadlessType } from './types.d';
+
+const { IS_CHROME_FOR_TESTING } = require('../env');
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
@@ -54,7 +56,7 @@ const getDisabledFeatures = () => {
 
 const parseJSONParam = (
   param: string | undefined,
-  defaultParam: boolean | string[],
+  defaultParam: boolean | string | string[],
 ) => {
   if (param) {
     try {
@@ -125,9 +127,9 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
   process.env.DEFAULT_BLOCK_ADS,
   false,
 );
-export const DEFAULT_HEADLESS: boolean | 'new' = parseJSONParam(
+export const DEFAULT_HEADLESS: HeadlessType = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
-  true,
+  IS_CHROME_FOR_TESTING ? 'new' : true,
 );
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(
   process.env.DEFAULT_LAUNCH_ARGS,
@@ -156,6 +158,10 @@ export const DEFAULT_USER_DATA_DIR: string | undefined = process.env
 export const PREBOOT_CHROME: boolean = parseJSONParam(
   process.env.PREBOOT_CHROME,
   false,
+);
+export const PREBOOT_QUANTITY: number = parseNumber(
+  process.env.PREBOOT_QUANTITY,
+  0,
 );
 export const PRINT_GET_STARTED_LINKS: boolean = parseJSONParam(
   process.env.PRINT_GET_STARTED_LINKS,

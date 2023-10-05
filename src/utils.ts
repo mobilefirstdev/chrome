@@ -14,7 +14,6 @@ import ip from 'ip';
 import { Schema } from 'joi';
 import _ from 'lodash';
 
-import fetch from 'node-fetch';
 import { CDPSession, Page } from 'puppeteer';
 
 import rmrf from 'rimraf';
@@ -127,7 +126,7 @@ export const getBasicAuthToken = (req: IncomingMessage): string | undefined => {
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
     Promise.resolve(handler(req, socket, head)).catch((error: Error) => {
-      debug(`Error in WebSocket handler: ${error}`);
+      debug(`Error in WebSocket handler: ${error} ${error.stack}`);
       socket.write(
         [
           'HTTP/1.1 400 Bad Request',
@@ -135,9 +134,10 @@ export const asyncWsHandler = (handler: IUpgradeHandler) => {
           'Content-Encoding: UTF-8',
           'Accept-Ranges: bytes',
           'Connection: keep-alive',
-        ].join('\n') + '\n\n',
+          '\r\n',
+          'Bad Request, ' + error.message,
+        ].join('\r\n'),
       );
-      socket.write(Buffer.from('Bad Request, ' + error.message));
       socket.end();
     });
   };
@@ -393,14 +393,17 @@ export const normalizeWebdriverStart = async (
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
   const windowSizeParsed =
     windowSizeArg && windowSizeArg.split('=')[1].split(',');
-  let windowSize;
+  let windowSize: IWebdriverStartNormalized['params']['windowSize'];
 
   if (Array.isArray(windowSizeParsed)) {
-    const [width, height] = windowSizeParsed;
+    const [width, height, deviceScaleFactor] = windowSizeParsed;
     windowSize = {
       width: +width,
       height: +height,
     };
+    if (deviceScaleFactor) {
+      windowSize.deviceScaleFactor = parseInt(deviceScaleFactor);
+    }
   }
 
   return {

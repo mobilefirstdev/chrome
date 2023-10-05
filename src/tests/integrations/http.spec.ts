@@ -1,6 +1,5 @@
 import chai, { expect } from 'chai';
 import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot';
-import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types.d';
@@ -99,7 +98,11 @@ describe('Browserless Chrome HTTP', () => {
     });
     await browserless.startServer();
 
-    return fetch(`http://abc@127.0.0.1:${params.port}/json`).then(
+    const headers = new Headers({
+      Authorization: `Basic ${btoa('abc')}`,
+    });
+
+    return fetch(`http://127.0.0.1:${params.port}/json`, { headers }).then(
       (res: any) => {
         expect(res.headers['set-cookie']).toMatchSnapshot();
       },
@@ -516,6 +519,31 @@ describe('Browserless Chrome HTTP', () => {
       });
     });
 
+    it('allows selector "waitFor"s with options', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: {
+          selector: 'body',
+          timeout: 0,
+        },
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      }).then((res) => {
+        expect(res.headers.get('content-type')).to.equal('image/png');
+        expect(res.status).to.equal(200);
+      });
+    });
+
     it('allows function "waitFor"s', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -804,7 +832,7 @@ describe('Browserless Chrome HTTP', () => {
         code: `module.exports = async ({ page }) => {
           await page.setViewport({ width: 640, height: 480 });
           await page.goto('https://example.com/');
-          await new Promise(r => global.setTimeout(r, 5000));
+          await new Promise(r => global.setTimeout(r, 2500));
         }`,
       };
 
@@ -965,6 +993,31 @@ describe('Browserless Chrome HTTP', () => {
       const body = {
         url: 'https://example.com',
         waitFor: 'body',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      }).then((res) => {
+        expect(res.headers.get('content-type')).to.equal('application/pdf');
+        expect(res.status).to.equal(200);
+      });
+    });
+
+    it('allows selector "waitFor"s with options', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: {
+          selector: 'body',
+          timeout: 0,
+        },
       };
 
       return fetch(`http://127.0.0.1:${params.port}/pdf`, {
@@ -1292,6 +1345,33 @@ describe('Browserless Chrome HTTP', () => {
       });
     });
 
+    it('allows selector "waitFor"s with options', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: {
+          selector: 'body',
+          timeout: 0,
+        },
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      }).then((res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).to.equal(200);
+      });
+    });
+
     it('allows function "waitFor"s', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -1570,8 +1650,13 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   describe('/stats', () => {
+    const lighthouseTimeout = 60000;
+    const params = {
+      ...defaultParams(),
+      connectionTimeout: 60000,
+    };
+
     it('allows requests', async () => {
-      const params = defaultParams();
       const browserless = start(params);
       await browserless.startServer();
 
@@ -1588,10 +1673,9 @@ describe('Browserless Chrome HTTP', () => {
       }).then((res) => {
         expect(res.status).to.equal(200);
       });
-    });
+    }).timeout(lighthouseTimeout);
 
     it('allows /GET requests', async () => {
-      const params = defaultParams();
       const browserless = start(params);
       await browserless.startServer();
 
@@ -1604,13 +1688,13 @@ describe('Browserless Chrome HTTP', () => {
       ).then((res) => {
         expect(res.status).to.equal(200);
       });
-    });
+    }).timeout(lighthouseTimeout);
 
     it('times out requests', async () => {
       const params = defaultParams();
       const browserless = start({
         ...params,
-        connectionTimeout: 5000,
+        connectionTimeout: 500,
       });
       await browserless.startServer();
 

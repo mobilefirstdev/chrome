@@ -1,4 +1,9 @@
-FROM ubuntu:22.04
+FROM ubuntu:lunar
+
+ENV NODE_VERSION v18.18.0
+ENV NVM_DIR /usr/src/.nvm
+ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
+ENV PATH $NODE_PATH:$PATH
 
 ARG BLESS_USER_ID=999
 
@@ -8,15 +13,12 @@ COPY fonts.conf /etc/fonts/local.conf
 RUN apt-get -qq update && \
   apt-get -qq dist-upgrade
 
-# Add the partner repository
-RUN apt-get -y -qq install software-properties-common && \
-  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner"
-
 # Accept Microsoft EULA agreement for ttf-mscorefonts-installer
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
 
 # Install dependencies for Chrome / Chromium
 RUN apt-get -y -qq --no-install-recommends install \
+  software-properties-common \
   build-essential \
   ca-certificates \
   curl \
@@ -83,10 +85,11 @@ RUN apt-get -y -qq --no-install-recommends install \
   xdg-utils \
   xvfb
 
-# Install NodeJS
-RUN curl --silent --location https://deb.nodesource.com/setup_18.x | bash - && \
-  apt-get -qq install nodejs && \
-  npm install -g npm@latest
+# Install nvm with node and npm
+RUN mkdir -p $NVM_DIR &&\
+  curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
+  . $NVM_DIR/nvm.sh &&\
+  nvm install $NODE_VERSION
 
 # Cleanup
 RUN fc-cache -f -v && \

@@ -58,6 +58,7 @@ export interface ISession {
 export interface IWindowSize {
   width: number;
   height: number;
+  deviceScaleFactor?: number;
 }
 
 export interface PuppeteerRequest {
@@ -68,12 +69,14 @@ export interface PuppeteerRequest {
 
 export type PuppeteerLaunchOptions = Parameters<puppeteer.launch>[0];
 
+export type HeadlessType = boolean | 'new';
+
 export interface ILaunchOptions {
   ignoreHTTPSErrors?: boolean;
   slowMo?: number;
   userDataDir?: string;
   dumpio?: boolean;
-  headless?: boolean | 'new';
+  headless?: HeadlessType;
   args?: string[];
   ignoreDefaultArgs?: boolean | string[];
   pauseOnConnect: boolean;
@@ -105,7 +108,7 @@ export interface IRunHTTP {
   after?: (...args: any) => Promise<any>;
   flags?: string[];
   options?: any;
-  headless?: boolean | 'new';
+  headless?: HeadlessType;
   ignoreDefaultArgs?: boolean | string[];
   builtin?: string[];
   envVars?: string[];
@@ -180,6 +183,7 @@ export interface IChromeServiceConfiguration {
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
+  prebootQuantity: number;
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];

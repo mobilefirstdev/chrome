@@ -13,7 +13,6 @@ import url from 'url';
 import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
-import fetch from 'node-fetch';
 // @ts-ignore no types
 import { BrowserServer } from 'playwright-core';
 import puppeteer, { Browser, Page } from 'puppeteer';
@@ -55,6 +54,7 @@ import {
   IDevtoolsJSON,
   IPage,
   PuppeteerRequest,
+  HeadlessType,
 } from './types.d';
 import {
   fetchJson,
@@ -110,6 +110,10 @@ const removeDataDir = (dir: string | null) => {
 const networkBlock = (request: PuppeteerRequest) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
+  // @ts-ignore alter to any for bw compatibility with old puppeteer
+  if ((request as any)?.isInterceptResolutionHandled()) {
+    return;
+  }
   if (blacklist.includes(domain)) {
     return request.abort();
   }
@@ -138,7 +142,12 @@ const getTargets = async ({
   port,
 }: {
   port: string;
-}): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
+}): Promise<IDevtoolsJSON[]> =>
+  fetchJson(`http://127.0.0.1:${port}/json/list`, {
+    headers: {
+      Host: '127.0.0.1',
+    },
+  });
 
 const isPuppeteer = (
   browserServer: Browser | BrowserServer,
@@ -301,6 +310,10 @@ const setupBrowser = async ({
 
   await browserHook({ browser, meta });
 
+  process.once('close', () => {
+    debug(`Browser process ${browser._id} has closed, cleaning up.`);
+    closeBrowser(browser);
+  });
   browser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
@@ -415,7 +428,12 @@ export const getDebuggingPages = async (
           throw new Error(`Error finding port in browser endpoint: ${port}`);
         }
 
-        const sessions = await getTargets({ port });
+        const sessions = await getTargets({ port }).catch((e) => {
+          debug(
+            `Error fetching sessions from target: ${e.message} ${e.stack}.`,
+          );
+          return [];
+        });
 
         return sessions.map((session) =>
           injectHostIntoSession(externalURL, browser, session),
@@ -427,6 +445,17 @@ export const getDebuggingPages = async (
 };
 
 export const getBrowsersRunning = () => runningBrowsers.length;
+
+const parseHeadlessValue = (
+  param: string | string[] | undefined,
+): HeadlessType =>
+  _.isUndefined(param)
+    ? DEFAULT_HEADLESS
+    : param === 'new'
+    ? 'new'
+    : param === 'false'
+    ? false
+    : true;
 
 export const convertUrlParamsToLaunchOpts = (
   req: IHTTPRequest,
@@ -453,9 +482,7 @@ export const convertUrlParamsToLaunchOpts = (
 
   const playwright = req.parsed.pathname === PLAYWRIGHT_ROUTE;
 
-  const isHeadless = !_.isUndefined(headless)
-    ? headless !== 'false'
-    : DEFAULT_HEADLESS;
+  const headlessValue = parseHeadlessValue(headless);
 
   const isStealth = !_.isUndefined(stealth)
     ? stealth !== 'false'
@@ -497,7 +524,7 @@ export const convertUrlParamsToLaunchOpts = (
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
     dumpio,
-    headless: isHeadless,
+    headless: headlessValue,
     stealth: isStealth,
     ignoreDefaultArgs: parsedIgnoreDefaultArgs,
     ignoreHTTPSErrors:
@@ -543,6 +570,8 @@ export const launchChrome = async (
       .find((arg) => arg.includes('--user-data-dir='))
       ?.split('=')[1] || opts.userDataDir;
 
+  // not necessary to allow it to be "new", since it's used to
+  // set an arg if it's Playwright and not headless=false
   const isHeadless =
     launchArgs.args.some((arg) => arg.startsWith('--headless')) ||
     typeof launchArgs.headless === 'undefined' ||
