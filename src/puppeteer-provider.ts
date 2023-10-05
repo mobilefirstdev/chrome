@@ -7,6 +7,7 @@ import { AsyncArray } from './async-array';
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
 import { PLAYWRIGHT_ROUTE } from './constants';
+import { isVersionCompatible } from './playwright-provider';
 import { Queue } from './queue';
 import {
   IChromeServiceConfiguration,
@@ -49,31 +50,41 @@ export class PuppeteerProvider {
     );
   }
 
-  public async start() {
+  public setSwarm(swarm: IBrowser[] | void) {
+    this.chromeSwarm = new AsyncArray();
+
+    if (!swarm) return;
+
+    swarm.forEach((browser) => {
+      this.chromeSwarm.push(browser);
+    });
+  }
+
+  public async startChromeInstances() {
     if (this.config.prebootChrome) {
+      const initialInstances =
+        this.config.prebootQuantity || this.config.maxConcurrentSessions;
+
       sysdebug(
-        `Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`,
+        `Starting chrome swarm: ${initialInstances} chrome instances starting`,
       );
 
-      if (this.config.maxConcurrentSessions > 10) {
+      if (initialInstances > 10) {
         process.setMaxListeners(this.config.maxConcurrentSessions + 3);
       }
 
-      const launching = Array.from(
-        { length: this.config.maxConcurrentSessions },
-        async () => {
-          const chrome = await this.launchChrome(
-            chromeHelper.defaultLaunchArgs,
-            true,
-          );
-          this.chromeSwarm.push(chrome);
-          return chrome;
-        },
+      const launching = [...Array(initialInstances)].map(() =>
+        this.launchChrome(chromeHelper.defaultLaunchArgs, true),
       );
 
-      return Promise.all(launching);
+      const swarm = await Promise.all(launching);
+
+      this.setSwarm(swarm);
+
+      return swarm;
     }
 
+    this.setSwarm();
     return Promise.resolve();
   }
 
@@ -340,6 +351,9 @@ export class PuppeteerProvider {
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
+    // Causes issues with browsers running puppeteer to connect
+    delete req.headers.origin;
+
     // Catch actual running pages and route them appropriately
     if (
       route.includes('/devtools/page') &&
@@ -404,6 +418,20 @@ export class PuppeteerProvider {
     // its own process to prevent infinite/runaway scripts
     const handler = (done: IDone) => {
       const launchPromise = this.getChrome(opts);
+      if (
+        opts.playwright &&
+        opts.playwrightVersion &&
+        !isVersionCompatible(opts.playwrightVersion)
+      ) {
+        jobdebug(
+          `Version '${opts.playwrightVersion}' is not supported. Using default version.`,
+        );
+      }
+      if (opts.playwright) {
+        jobdebug(
+          `${job.id}: Versioning playwright to '${opts.playwrightVersion}'`,
+        );
+      }
       jobdebug(`${job.id}: Getting browser.`);
 
       const doneOnce = _.once((err) => {

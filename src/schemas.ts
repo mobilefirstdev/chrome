@@ -1,7 +1,16 @@
 import Joi from 'joi';
 
-const waitFor = [Joi.string(), Joi.number()];
 const waitForFunction = Joi.string();
+const waitFor = [
+  Joi.string(),
+  Joi.number(),
+  Joi.object().keys({
+    selector: Joi.string(),
+    visible: Joi.boolean(),
+    hidden: Joi.boolean(),
+    timeout: Joi.number(),
+  }),
+];
 const userAgent = Joi.string();
 
 const gotoOptions = Joi.object().keys({
@@ -51,7 +60,6 @@ const addScriptTag = Joi.array()
   .items(
     Joi.object().keys({
       url: Joi.string(),
-      path: Joi.string(),
       content: Joi.string(),
       type: Joi.string(),
     }),
@@ -62,7 +70,6 @@ const addStyleTag = Joi.array()
   .items(
     Joi.object().keys({
       url: Joi.string(),
-      path: Joi.string(),
       content: Joi.string(),
     }),
   )
@@ -165,6 +172,7 @@ export const screenshot = Joi.object()
     rejectRequestPattern,
     rejectResourceTypes,
     requestInterceptors,
+    scrollPage: Joi.boolean(),
     selector: Joi.string(),
     setExtraHTTPHeaders,
     setJavaScriptEnabled,
@@ -193,7 +201,6 @@ export const content = Joi.object().keys({
   waitFor,
 });
 
-// @ts-ignore
 export const pdf = Joi.object()
   .keys({
     authenticate,

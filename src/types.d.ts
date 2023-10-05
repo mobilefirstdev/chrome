@@ -10,12 +10,12 @@ import url from 'url';
 import { Response } from 'express';
 import { BrowserServer, LaunchOptions } from 'playwright-core';
 
-import puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 
 export interface IChromeDriver {
   port: number;
   chromeProcess: ChildProcess;
-  browser: IBrowser | null;
+  browser: () => IBrowser | null;
 }
 
 export interface IBrowser extends puppeteer.Browser {
@@ -58,14 +58,33 @@ export interface ISession {
 export interface IWindowSize {
   width: number;
   height: number;
+  deviceScaleFactor?: number;
 }
 
-export interface ILaunchOptions extends puppeteer.LaunchOptions {
+export interface PuppeteerRequest {
+  url: () => string;
+  abort: () => void;
+  continue: () => void;
+}
+
+export type PuppeteerLaunchOptions = Parameters<puppeteer.launch>[0];
+
+export type HeadlessType = boolean | 'new';
+
+export interface ILaunchOptions {
+  ignoreHTTPSErrors?: boolean;
+  slowMo?: number;
+  userDataDir?: string;
+  dumpio?: boolean;
+  headless?: HeadlessType;
+  args?: string[];
+  ignoreDefaultArgs?: boolean | string[];
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId?: string;
   keepalive?: number;
   playwrightProxy?: LaunchOptions['proxy'];
+  playwrightVersion?: string | undefined;
   playwright: boolean;
   stealth: boolean;
   meta: unknown;
@@ -89,7 +108,7 @@ export interface IRunHTTP {
   after?: (...args: any) => Promise<any>;
   flags?: string[];
   options?: any;
-  headless?: boolean;
+  headless?: HeadlessType;
   ignoreDefaultArgs?: boolean | string[];
   builtin?: string[];
   envVars?: string[];
@@ -112,6 +131,7 @@ export interface IBrowserlessStats {
   maxTime: number;
   minTime: number;
   maxConcurrent: number;
+  units: number;
 }
 
 export interface ISandboxOpts {
@@ -163,6 +183,7 @@ export interface IChromeServiceConfiguration {
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
+  prebootQuantity: number;
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];

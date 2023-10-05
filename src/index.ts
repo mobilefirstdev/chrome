@@ -1,5 +1,6 @@
 import { BrowserlessServer } from './browserless';
 import * as config from './config';
+import { clearBrowserlessDataDirs } from './utils';
 
 const browserless = new BrowserlessServer({
   allowFileProtocol: config.ALLOW_FILE_PROTOCOL,
@@ -26,6 +27,7 @@ const browserless = new BrowserlessServer({
   metricsJSONPath: config.METRICS_JSON_PATH,
   port: config.PORT,
   prebootChrome: config.PREBOOT_CHROME,
+  prebootQuantity: config.PREBOOT_QUANTITY,
   queuedAlertURL: config.QUEUE_ALERT_URL,
   rejectAlertURL: config.REJECT_ALERT_URL,
   singleRun: config.SINGLE_RUN,
@@ -35,7 +37,10 @@ const browserless = new BrowserlessServer({
   socketBehavior: config.SOCKET_CLOSE_METHOD,
 });
 
-browserless.startServer();
+(async () => {
+  await clearBrowserlessDataDirs();
+  browserless.startServer();
+})();
 
 process
   .on('unhandledRejection', (reason, promise) => {

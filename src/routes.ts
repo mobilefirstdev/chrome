@@ -75,6 +75,8 @@ interface IGetRoutes {
   enableHeapdump: boolean;
 }
 
+const fiveMinuteIntervalsInAMonth = 8640;
+
 export const getRoutes = ({
   puppeteerProvider,
   getMetrics,
@@ -126,6 +128,8 @@ export const getRoutes = ({
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
     router.get('/metrics/total', async (_req, res) => {
       const metrics = await getMetrics();
+      const availableMetrics = metrics.length;
+
       const totals = metrics.reduce(
         (accum, metric) => ({
           successful: accum.successful + metric.successful,
@@ -140,6 +144,9 @@ export const getRoutes = ({
           minTime: Math.min(accum.minTime, metric.minTime),
           maxConcurrent: Math.max(accum.maxConcurrent, metric.maxConcurrent),
           sessionTimes: [...accum.sessionTimes, ...metric.sessionTimes],
+          units: accum.units + metric.units,
+          estimatedMonthlyUnits: accum.estimatedMonthlyUnits,
+          minutesOfMetricsAvailable: accum.minutesOfMetricsAvailable + 5,
         }),
         {
           successful: 0,
@@ -153,10 +160,18 @@ export const getRoutes = ({
           minTime: 0,
           maxConcurrent: 0,
           timedout: 0,
+          units: 0,
+          estimatedMonthlyUnits: 0,
+          minutesOfMetricsAvailable: 0,
           sessionTimes: [],
         },
       );
+
       totals.meanTime = totals.meanTime / metrics.length;
+      totals.estimatedMonthlyUnits = Math.round(
+        totals.units / (availableMetrics / fiveMinuteIntervalsInAMonth),
+      );
+
       return res.json(totals);
     });
   }
@@ -295,6 +310,7 @@ export const getRoutes = ({
   if (!disabledFeatures.includes(Features.KILL_ENDPOINT)) {
     router.get('/kill/all', async (_req, res) => {
       await chromeHelper.killAll();
+      await puppeteerProvider.startChromeInstances();
 
       return res.sendStatus(204);
     });
@@ -501,11 +517,11 @@ export const getRoutes = ({
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
     router.get('/json/protocol', async (_req, res) => {
-      const protocol = await chromeHelper
-        .getProtocolJSON()
-        .catch((err) => res.status(400).send(err.message));
-
-      return res.json(protocol);
+      try {
+        return res.json(await chromeHelper.getProtocolJSON());
+      } catch (err) {
+        return res.status(400).send(err.message);
+      }
     });
 
     router.get(
@@ -530,14 +546,15 @@ export const getRoutes = ({
     router.get('/json/version', async (req, res) => {
       const baseUrl = req.get('host');
       const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
-      const version = await chromeHelper
-        .getVersionJSON()
-        .catch((err) => res.status(400).send(err.message));
 
-      return res.json({
-        ...version,
-        webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
-      });
+      try {
+        return res.json({
+          ...(await chromeHelper.getVersionJSON()),
+          webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
+        });
+      } catch (err) {
+        return res.status(400).send(err.message);
+      }
     });
 
     router.get(

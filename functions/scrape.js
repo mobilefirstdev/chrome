@@ -1,3 +1,5 @@
+/* global clearTimeout, document, module, MutationObserver, setTimeout */
+
 /*
  * scrape function
  *
@@ -125,19 +127,22 @@ module.exports = async function scrape({ page, context }) {
   const response = await page.goto(url, gotoOptions);
 
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }
 
   if (waitFor) {
-    if (typeof waitFor === 'string') {
+    if (typeof waitFor === 'object') {
+      const { selector, ...options } = waitFor;
+      await page.waitForSelector(selector, options);
+    } else if (typeof waitFor === 'string') {
       const isSelector = await page
         .evaluate(
           `document.createDocumentFragment().querySelector("${waitFor}")`,
