@@ -14,7 +14,7 @@ if (argv.h || argv.help) {
   return console.log(`---
 '$ npm run deploy'
 
-Builds a new browserless/base and browserless/chrome with a version defined in the package.json field and builds then pushes the image into docker.
+Builds a new budsense/base and budsense/chrome with a version defined in the package.json field and builds then pushes the image into docker.
 This CLI is interactive and you can override many parts of this build process. Please follow the prompts which include sensible defaults.
 ---`);
 }
@@ -22,12 +22,12 @@ This CLI is interactive and you can override many parts of this build process. P
 (async function deploy() {
   const baseRepo =
     (await question(
-      `Enter a custom base repo, or use default of "browserless/base"? `,
-    )) || 'browserless/base';
+      `Enter a custom base repo, or use default of "budsense/base"? `,
+    )) || 'budsense/base';
   const repo =
     (await question(
-      `Enter a custom repo, or use default of "browserless/chrome"? `,
-    )) || 'browserless/chrome';
+      `Enter a custom repo, or use default of "budsense/chrome"? `,
+    )) || 'budsense/chrome';
   const version =
     (await question(
       `Enter a semantic version (eg "1.5.3") or use default of "${npmVersion}"? `,
