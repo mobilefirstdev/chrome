@@ -37,6 +37,7 @@ const buildPages = async (page, opts = {}) => {
       const buffer = await page.pdf({
         ...opts,
         pageRanges: pageCount.toString(),
+        timeout: opts.timeout || 300000,
       });
       pageBuffers.push(buffer);
       pageCount = pageCount + 1;
@@ -193,8 +194,8 @@ module.exports = async function pdf({ page, context }) {
   }
 
   let data = safeMode
-    ? await buildPages(page, options)
-    : await page.pdf(options);
+    ? await buildPages(page, { ...options, timeout: 300000 })
+    : await page.pdf({ ...options, timeout: 300000 });
 
   if (rotate) {
     const pdftk = require('node-pdftk');
